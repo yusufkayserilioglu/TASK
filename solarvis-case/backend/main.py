@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse
 
 from roof import build_roof_model
 
+from panels import place_panels
+
 load_dotenv()  # backend/.env dosyasındaki anahtarları okur
 
 app = FastAPI(title="solarVis Case API")
@@ -117,3 +119,15 @@ def roof():
         )
     mpp = meters_per_pixel(FIXED_LAT, ZOOM, SCALE)
     return build_roof_model(mpp)
+
+
+@app.get("/api/panels")
+def panels(kwp: float = 6.0):
+    if kwp not in (3.6, 6.0, 9.6):
+        raise HTTPException(status_code=400,
+                            detail="kwp yalnızca 3.6, 6.0 veya 9.6 olabilir.")
+    if not (DATA_DIR / "roof.json").exists():
+        raise HTTPException(status_code=404, detail="data/roof.json bulunamadı.")
+    mpp = meters_per_pixel(FIXED_LAT, ZOOM, SCALE)
+    model = build_roof_model(mpp)
+    return place_panels(model, kwp, mpp, FIXED_LAT, FIXED_LON)
