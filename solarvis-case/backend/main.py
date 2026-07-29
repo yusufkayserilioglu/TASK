@@ -8,6 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from roof import build_roof_model
+
 load_dotenv()  # backend/.env dosyasındaki anahtarları okur
 
 app = FastAPI(title="solarVis Case API")
@@ -104,3 +106,14 @@ def satellite_image():
 
     SATELLITE_CACHE.write_bytes(resp.content)
     return FileResponse(SATELLITE_CACHE, media_type="image/png")
+
+
+@app.get("/api/roof")
+def roof():
+    if not (DATA_DIR / "roof.json").exists():
+        raise HTTPException(
+            status_code=404,
+            detail="data/roof.json bulunamadı — önce işaretleme adımını tamamlayın.",
+        )
+    mpp = meters_per_pixel(FIXED_LAT, ZOOM, SCALE)
+    return build_roof_model(mpp)
