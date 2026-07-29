@@ -5,6 +5,9 @@ import {
   Stage, Layer, Image as KonvaImage, Circle, Line, Text, Label, Tag,
 } from "react-konva";
 
+import AnalysisSection, { Analysis } from "./AnalysisSection";
+
+
 const IMG_PX = 1280;
 const DISPLAY_PX = 640;
 const FULL_SCALE = DISPLAY_PX / IMG_PX;
@@ -41,6 +44,7 @@ export default function RoofScene() {
   const [hover, setHover] = useState<Hover>(null);
   const [kwp, setKwp] = useState(6.0);
   const [pl, setPl] = useState<PanelsResp | null>(null);
+  const [an, setAn] = useState<Analysis | null>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -65,12 +69,20 @@ export default function RoofScene() {
     if (MARKING_MODE) return;
     setErr("");
     setPl(null);
+    setAn(null);
     fetch(`http://localhost:8000/api/panels?kwp=${kwp}`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).detail);
         return r.json();
       })
       .then(setPl)
+      .catch((e) => setErr(String(e)));
+    fetch(`http://localhost:8000/api/analysis?kwp=${kwp}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).detail);
+        return r.json();
+      })
+      .then(setAn)
       .catch((e) => setErr(String(e)));
   }, [kwp]);
 
@@ -290,6 +302,8 @@ export default function RoofScene() {
             )}
           </div>
         )}
+
+        {!MARKING_MODE && <AnalysisSection data={an} />}
 
         {MARKING_MODE && (
           <div className="w-[640px] text-sm space-y-2">
