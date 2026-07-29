@@ -1,0 +1,4 @@
+solarvis-case/backend/venv/
+solarvis-case/backend/.env
+solarvis-case/frontend/node_modules/
+solarvis-case/frontend/.next/
