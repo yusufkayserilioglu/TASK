@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Stage, Layer, Image as KonvaImage, Circle, Line, Text, Label, Tag,
 } from "react-konva";
@@ -37,10 +37,14 @@ export default function RoofScene({
   kwp: kwpProp,
   showControls = true,
   showTable = true,
+  tableLayout = "side",
+  onSnapshot,
 }: {
   kwp?: number;
   showControls?: boolean;
   showTable?: boolean;
+  tableLayout?: "side" | "below";
+  onSnapshot?: (dataUrl: string) => void;
 }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [points, setPoints] = useState<number[][]>([]);
@@ -50,6 +54,8 @@ export default function RoofScene({
   const [kwp, setKwp] = useState(kwpProp ?? 6.0);
   const [pl, setPl] = useState<PanelsResp | null>(null);
   const [err, setErr] = useState("");
+  const stageRef = useRef<any>(null);
+  const lastShot = useRef("");
 
   useEffect(() => {
     if (kwpProp !== undefined) setKwp(kwpProp);
@@ -85,6 +91,21 @@ export default function RoofScene({
       .then(setPl)
       .catch((e) => setErr(String(e)));
   }, [kwp]);
+
+  // Sahne tam yüklenince PDF için bir kez görüntü al
+  useEffect(() => {
+    if (!onSnapshot || !img || !roof || !pl) return;
+    const sig = `${kwp}-${pl.placedPanels}`;
+    if (lastShot.current === sig) return;
+    const t = setTimeout(() => {
+      const url = stageRef.current?.toDataURL({ pixelRatio: 2 });
+      if (url) {
+        lastShot.current = sig;
+        onSnapshot(url);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [img, roof, pl, kwp, onSnapshot]);
 
   const view = useMemo(() => {
     if (!roof || !focus || MARKING_MODE)
@@ -143,13 +164,18 @@ export default function RoofScene({
     : 0;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 items-start">
+    <div className={`flex gap-4 ${
+      tableLayout === "below"
+        ? "flex-col items-center"
+        : "flex-col lg:flex-row items-start"
+    }`}>
       {/* ---------------- SAHNE ---------------- */}
       <div
         className="flex flex-col items-center gap-2"
         style={{ cursor: hover ? "pointer" : "default" }}
       >
         <Stage
+          ref={stageRef}
           width={DISPLAY_PX} height={DISPLAY_PX}
           scaleX={view.scale} scaleY={view.scale}
           x={view.x} y={view.y}
@@ -329,7 +355,11 @@ export default function RoofScene({
 
       {/* ---------------- ÖLÇÜ TABLOSU ---------------- */}
       {roof && !MARKING_MODE && showTable && (
-        <div className="w-80 bg-white rounded-lg shadow p-4 text-sm space-y-4">
+        <div className={
+          tableLayout === "below"
+            ? "w-full grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm pt-1"
+            : "w-80 bg-white rounded-lg shadow p-4 text-sm space-y-4"
+        }>
           <div>
             <h3 className="font-semibold mb-1">Kenarlar</h3>
             <table className="w-full">

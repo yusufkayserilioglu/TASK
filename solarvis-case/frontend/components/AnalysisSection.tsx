@@ -43,7 +43,7 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
   ];
 
   return (
-    <div className="w-[640px] bg-white rounded-lg shadow p-4 space-y-3">
+    <div className="w-full max-w-2xl bg-white rounded-lg shadow p-4 space-y-3">
       <h3 className="font-semibold">
         Finansal Analiz — {data.placement.actualKwp} kWp
         {data.placement.actualKwp !== data.placement.requestedKwp &&

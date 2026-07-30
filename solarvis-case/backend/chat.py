@@ -122,9 +122,10 @@ def handle_message(cid: str, text: str):
                   f"{a['paybackYears']} years, 20-year net benefit ≈ "
                   f"€{a['netBenefit20yEur']:,.0f}."),
             {"role": "assistant", "type": "analysis", "data": a},
-            _text("Next up: a PDF feasibility report and a shareable proposal "
-                  "link. (Coming in the next build steps.) Type 'restart' for "
-                  "a new analysis."),
+            _text("Your PDF feasibility report is ready below. A shareable "
+                  "web proposal link is coming next. Type 'restart' for a "
+                  "new analysis."),
+            {"role": "assistant", "type": "actions", "kwp": kwp},
         ]
         return naturalize(msgs)
 
