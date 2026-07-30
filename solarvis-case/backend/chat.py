@@ -77,8 +77,10 @@ def handle_message(cid: str, text: str):
         conv["state"] = "AWAITING_SIZE"
         num = re.search(r"\d[\d.,]*", t)
         typed = num.group().replace(".", "").replace(",", "") if num else None
-        prefix = ("Consumption is fixed for this case study, so "
-                  if typed and typed != "1150" else "")
+        # Kullanıcı 1150 dışında BİR ŞEY söylediyse (farklı sayı YA DA sayısız
+        # metin), sabitleme açıklamasını göster; sessizce üzerine yazma.
+        prefix = ("" if typed == "1150"
+                  else "Consumption is fixed for this case study, so ")
         return naturalize([
             _text(f"{prefix}I'll continue with 1,150 kWh/month "
                   "(13,800 kWh/year) at €0.25/kWh."),

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Stage, Layer, Image as KonvaImage, Circle, Line, Text, Label, Tag,
+  Stage, Layer, Image as KonvaImage, Circle, Line, Arrow, Text, Label, Tag,
 } from "react-konva";
 
 const IMG_PX = 1280;
@@ -159,8 +159,8 @@ export default function RoofScene({
   ];
 
   // --- ETİKET YERLEŞİMİ ------------------------------------------------
-  // Saçak: dışa dik + kılavuz çizgi. Hip: kendi doğrultusunun köşeden dışarı
-  // uzantısı + kılavuz çizgi. Mahya: tek iç etiket, orta noktada kompakt.
+  // Saçak: dışa dik. Hip: kendi doğrultusunun köşeden dışarı uzantısı.
+  // Ok: ETİKETTEN kenara doğru işaret eder. Mahya: iç kompakt çip.
   const edgeLabels = useMemo(() => {
     if (!roof) return [];
     const D_EAVE = 48, D_HIP = 46;
@@ -178,8 +178,8 @@ export default function RoofScene({
         }
         return {
           x: mx + nx * D_EAVE, y: my + ny * D_EAVE,
-          leader: [mx + nx * 8, my + ny * 8,
-                   mx + nx * (D_EAVE - 16), my + ny * (D_EAVE - 16)],
+          leader: [mx + nx * (D_EAVE - 14), my + ny * (D_EAVE - 14),
+                   mx + nx * 6, my + ny * 6],
         };
       }
       if (e.kind === "hip") {
@@ -191,8 +191,9 @@ export default function RoofScene({
         const ux = dx / len, uy = dy / len;
         return {
           x: corner[0] + ux * D_HIP, y: corner[1] + uy * D_HIP,
-          leader: [corner[0] + ux * 8, corner[1] + uy * 8,
-                   corner[0] + ux * (D_HIP - 16), corner[1] + uy * (D_HIP - 16)],
+          leader: [corner[0] + ux * (D_HIP - 14),
+                   corner[1] + uy * (D_HIP - 14),
+                   corner[0] + ux * 6, corner[1] + uy * 6],
         };
       }
       return { x: mx, y: my, leader: null }; // ridge
@@ -283,8 +284,7 @@ export default function RoofScene({
             scaleX={view.scale} scaleY={view.scale}
             x={view.x} y={view.y}
             onClick={handleClick}
-            className="rounded-xl overflow-hidden shadow-lg shadow-black/40
-                       ring-1 ring-slate-800"
+            className="rounded-xl overflow-hidden shadow-lg shadow-black/40 ring-1 ring-slate-800"
           >
             <Layer>
               {img && (
@@ -342,16 +342,22 @@ export default function RoofScene({
                 );
               })}
 
-              {/* Kılavuz çizgileri */}
+              {/* Kılavuz okları: etiketten kenara işaret eder */}
               {roof?.edges.map((e, i) => {
                 const L = edgeLabels[i];
                 if (!L?.leader) return null;
                 const hovered = hv?.type === "edge" && hv.id === i;
                 return (
-                  <Line key={`ld${i}`} points={L.leader}
-                    stroke={hovered ? AMBER : "rgba(255,255,255,0.5)"}
-                    strokeWidth={hovered ? 1.5 : 1}
-                    listening={false} />
+                  <Arrow key={`ld${i}`}
+                    points={L.leader}
+                    stroke={hovered ? AMBER : "rgba(255,255,255,0.9)"}
+                    fill={hovered ? AMBER : "rgba(255,255,255,0.9)"}
+                    strokeWidth={hovered ? 2 : 1.4}
+                    pointerLength={7}
+                    pointerWidth={6}
+                    shadowColor="black" shadowBlur={3} shadowOpacity={0.8}
+                    listening={false}
+                  />
                 );
               })}
 
@@ -412,9 +418,7 @@ export default function RoofScene({
           {/* Hover bilgi kartı — eleman hangi taraftaysa o tarafta */}
           {infoPanel && (
             <div
-              className="absolute z-10 pointer-events-none w-40 rounded-lg
-                         border border-amber-400/50 bg-[#0d1830]/95 px-3 py-2
-                         shadow-xl backdrop-blur-sm"
+              className="absolute z-10 pointer-events-none w-40 rounded-lg border border-amber-400/50 bg-[#0d1830]/95 px-3 py-2 shadow-xl backdrop-blur-sm"
               style={{
                 top: Math.min(Math.max(infoPanel.sy - 44, 10),
                               DISPLAY_PX - 120),
@@ -451,8 +455,7 @@ export default function RoofScene({
                 </button>
               ))}
               <button onClick={() => setFocus(!focus)}
-                className="px-3 py-1 rounded-md bg-[#16233c] text-slate-300
-                           hover:bg-[#1c2c4a] text-sm transition">
+                className="px-3 py-1 rounded-md bg-[#16233c] text-slate-300 hover:bg-[#1c2c4a] text-sm transition">
                 {focus ? "Full image" : "Focus roof"}
               </button>
             </div>
@@ -485,8 +488,7 @@ export default function RoofScene({
               Undo last point
             </button>
             {json && (
-              <pre className="bg-black/50 text-emerald-300 p-3 rounded
-                              overflow-x-auto">
+              <pre className="bg-black/50 text-emerald-300 p-3 rounded overflow-x-auto">
                 {json}
               </pre>
             )}
