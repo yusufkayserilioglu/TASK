@@ -53,9 +53,13 @@ export default function RoofScene({
   const [hover, setHover] = useState<Hover>(null);
   const [kwp, setKwp] = useState(kwpProp ?? 6.0);
   const [pl, setPl] = useState<PanelsResp | null>(null);
+  const [shooting, setShooting] = useState(false);
   const [err, setErr] = useState("");
   const stageRef = useRef<any>(null);
   const lastShot = useRef("");
+
+  // Çekim modunda hover görselleri render'da tamamen bastırılır:
+  const hv: Hover = shooting ? null : hover;
 
   useEffect(() => {
     if (kwpProp !== undefined) setKwp(kwpProp);
@@ -92,20 +96,28 @@ export default function RoofScene({
       .catch((e) => setErr(String(e)));
   }, [kwp]);
 
-  // Sahne tam yüklenince PDF için bir kez görüntü al
+  // Sahne hazır olunca çekim moduna geç (PDF görseli için, bir kez)
   useEffect(() => {
     if (!onSnapshot || !img || !roof || !pl) return;
     const sig = `${kwp}-${pl.placedPanels}`;
     if (lastShot.current === sig) return;
+    const t = setTimeout(() => setShooting(true), 400);
+    return () => clearTimeout(t);
+  }, [img, roof, pl, kwp, onSnapshot]);
+
+  // Çekim modu: hover bastırılmış halde render edilmiş sahneyi yakala
+  useEffect(() => {
+    if (!shooting || !pl) return;
     const t = setTimeout(() => {
       const url = stageRef.current?.toDataURL({ pixelRatio: 2 });
       if (url) {
-        lastShot.current = sig;
-        onSnapshot(url);
+        lastShot.current = `${kwp}-${pl.placedPanels}`;
+        onSnapshot?.(url);
       }
-    }, 400);
+      setShooting(false);
+    }, 100);
     return () => clearTimeout(t);
-  }, [img, roof, pl, kwp, onSnapshot]);
+  }, [shooting, pl, kwp, onSnapshot]);
 
   const view = useMemo(() => {
     if (!roof || !focus || MARKING_MODE)
@@ -172,7 +184,7 @@ export default function RoofScene({
       {/* ---------------- SAHNE ---------------- */}
       <div
         className="flex flex-col items-center gap-2"
-        style={{ cursor: hover ? "pointer" : "default" }}
+        style={{ cursor: hv ? "pointer" : "default" }}
       >
         <Stage
           ref={stageRef}
@@ -199,7 +211,7 @@ export default function RoofScene({
                 points={f.polygonPx.flat()}
                 closed
                 fill={
-                  hover?.type === "facet" && hover.id === i
+                  hv?.type === "facet" && hv.id === i
                     ? "rgba(250,204,21,0.30)"
                     : "rgba(0,0,0,0.01)"
                 }
@@ -222,7 +234,7 @@ export default function RoofScene({
 
             {/* 9 kenar */}
             {roof?.edges.map((e, i) => {
-              const hovered = hover?.type === "edge" && hover.id === i;
+              const hovered = hv?.type === "edge" && hv.id === i;
               return (
                 <Line key={i}
                   points={[e.from[0], e.from[1], e.to[0], e.to[1]]}
@@ -238,7 +250,7 @@ export default function RoofScene({
 
             {/* Kenar etiketleri */}
             {roof?.edges.map((e, i) => {
-              const hovered = hover?.type === "edge" && hover.id === i;
+              const hovered = hv?.type === "edge" && hv.id === i;
               const mx = (e.from[0] + e.to[0]) / 2;
               const my = (e.from[1] + e.to[1]) / 2;
               let lx = mx, ly = my;
@@ -271,7 +283,7 @@ export default function RoofScene({
 
             {/* Facet etiketleri */}
             {roof?.facets.map((f, i) => {
-              const hovered = hover?.type === "facet" && hover.id === i;
+              const hovered = hv?.type === "facet" && hv.id === i;
               const [cx, cy] = centroid(f.polygonPx);
               return (
                 <Label key={f.id} x={cx} y={cy}
@@ -370,7 +382,7 @@ export default function RoofScene({
                     onMouseEnter={() => setHover({ type: "edge", id: i })}
                     onMouseLeave={() => setHover(null)}
                     className={
-                      hover?.type === "edge" && hover.id === i
+                      hv?.type === "edge" && hv.id === i
                         ? "bg-amber-100"
                         : "hover:bg-gray-50"
                     }
@@ -408,7 +420,7 @@ export default function RoofScene({
                       onMouseEnter={() => setHover({ type: "facet", id: i })}
                       onMouseLeave={() => setHover(null)}
                       className={
-                        hover?.type === "facet" && hover.id === i
+                        hv?.type === "facet" && hv.id === i
                           ? "bg-amber-100"
                           : "hover:bg-gray-50"
                       }

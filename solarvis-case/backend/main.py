@@ -16,10 +16,13 @@ from panels import place_panels
 from pipeline import run_pipeline
 from report import build_pdf
 from roof import build_roof_model
+from db import create_proposal, get_proposal, init_db, record_view
+from notify import notify_proposal_viewed
 
 load_dotenv()  # backend/.env dosyasındaki anahtarları okur
 
 app = FastAPI(title="solarVis Case API")
+init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -179,3 +182,20 @@ def report(body: ReportIn):
         headers={"Content-Disposition":
                  f'attachment; filename="solar-feasibility-{body.kwp}kWp.pdf"'},
     )
+
+
+@app.get("/api/proposals/{pid}")
+def proposals_get(pid: str):
+    p = get_proposal(pid)
+    if p is None:
+        raise HTTPException(status_code=404, detail="Teklif bulunamadı.")
+    return p
+
+
+@app.post("/api/proposals/{pid}/view")
+def proposals_view(pid: str):
+    if not record_view(pid):
+        raise HTTPException(status_code=404, detail="Teklif bulunamadı.")
+    p = get_proposal(pid)
+    status = notify_proposal_viewed(pid, p["viewCount"])
+    return {"ok": True, "viewCount": p["viewCount"], "notify": status}

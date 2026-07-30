@@ -126,7 +126,7 @@ def build_pdf(a: dict, scene_png: bytes | None) -> bytes:
     pdf.ln(1)
     pdf.cell(0, 8,
              f'Total annual production: {a["annualProductionKwh"]:,} kWh '
-             f'({int(a["coverageRatio"] * 100)}% of consumption)',
+             f'({round(a["coverageRatio"] * 100)}% of consumption)',
              new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
 

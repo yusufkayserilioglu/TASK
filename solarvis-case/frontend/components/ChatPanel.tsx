@@ -15,7 +15,8 @@ type Msg =
       options: { label: string; value: string }[] }
   | { role: "assistant"; type: "scene"; kwp: number }
   | { role: "assistant"; type: "analysis"; data: Analysis }
-  | { role: "assistant"; type: "actions"; kwp: number };
+  | { role: "assistant"; type: "actions"; kwp: number
+      proposalId?: string; proposalUrl?: string };
 
 export default function ChatPanel() {
   const [cid, setCid] = useState("");
@@ -161,13 +162,30 @@ export default function ChatPanel() {
           }
           if (m.type === "actions") {
             return (
-              <div key={i} className="flex gap-2 pl-1">
+              <div key={i} className="flex flex-wrap gap-2 pl-1">
                 <button onClick={() => downloadPdf(m.kwp)} disabled={pdfBusy}
                   className="px-4 py-1.5 rounded-full text-sm border
                              border-amber-500 text-amber-700 hover:bg-amber-50
                              disabled:opacity-50">
                   {pdfBusy ? "Preparing PDF…" : "Download PDF report"}
                 </button>
+                {m.proposalUrl && (
+                  <>
+                    <a href={m.proposalUrl} target="_blank" rel="noreferrer"
+                      className="px-4 py-1.5 rounded-full text-sm bg-amber-500
+                                 text-white hover:bg-amber-600">
+                      Open shareable proposal
+                    </a>
+                    <button
+                      onClick={() =>
+                        navigator.clipboard.writeText(m.proposalUrl!)}
+                      className="px-4 py-1.5 rounded-full text-sm border
+                                 border-gray-300 text-gray-600
+                                 hover:bg-gray-100">
+                      Copy link
+                    </button>
+                  </>
+                )}
               </div>
             );
           }

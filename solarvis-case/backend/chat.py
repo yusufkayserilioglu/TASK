@@ -1,13 +1,14 @@
 """solarVis AI sohbet akışı.
 
 Durumlar: AWAITING_LOCATION -> AWAITING_CONSUMPTION -> AWAITING_SIZE -> DONE
-Konuşma durumu bellekte (Adım G'de teklifler SQLite'a kalıcılaşacak).
+Konuşma durumu bellekte; teklifler SQLite'a kalıcı yazılır (db.py).
 Mimari not: hesaplar deterministik; metinler naturalize() kancasından geçer,
 istenirse oraya LLM katmanı takılır (opsiyonel iyileştirme).
 """
 import re
 import uuid
 
+from db import create_proposal
 from pipeline import run_pipeline
 
 CONVERSATIONS: dict[str, dict] = {}
@@ -114,6 +115,9 @@ def handle_message(cid: str, text: str):
                 f"({a['placement']['actualKwp']} kWp), so I sized everything "
                 "to what's actually achievable — the sweet spot for this roof."
             ))
+
+        pid = create_proposal(kwp, a)
+        url = f"http://localhost:3000/proposal/{pid}"
         msgs += [
             _text(f"The system produces ~{a['annualProductionKwh']:,} kWh/year, "
                   f"covering {round(a['coverageRatio'] * 100)}% of your "
@@ -122,10 +126,11 @@ def handle_message(cid: str, text: str):
                   f"{a['paybackYears']} years, 20-year net benefit ≈ "
                   f"€{a['netBenefit20yEur']:,.0f}."),
             {"role": "assistant", "type": "analysis", "data": a},
-            _text("Your PDF feasibility report is ready below. A shareable "
-                  "web proposal link is coming next. Type 'restart' for a "
-                  "new analysis."),
-            {"role": "assistant", "type": "actions", "kwp": kwp},
+            _text("Your feasibility report and shareable proposal are ready "
+                  "below — anyone with the link can view it online. "
+                  "Type 'restart' for a new analysis."),
+            {"role": "assistant", "type": "actions", "kwp": kwp,
+             "proposalId": pid, "proposalUrl": url},
         ]
         return naturalize(msgs)
 
