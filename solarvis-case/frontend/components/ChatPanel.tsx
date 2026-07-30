@@ -15,7 +15,7 @@ type Msg =
       options: { label: string; value: string }[] }
   | { role: "assistant"; type: "scene"; kwp: number }
   | { role: "assistant"; type: "analysis"; data: Analysis }
-  | { role: "assistant"; type: "actions"; kwp: number
+  | { role: "assistant"; type: "actions"; kwp: number;
       proposalId?: string; proposalUrl?: string };
 
 export default function ChatPanel() {
@@ -98,11 +98,20 @@ export default function ChatPanel() {
 
   return (
     <div className="w-full max-w-4xl flex flex-col h-[calc(100vh-3rem)]">
-      <header className="pb-3">
-        <h1 className="text-xl font-semibold">solarVis AI</h1>
-        <p className="text-sm text-gray-500">
-          AI-powered solar proposal assistant
-        </p>
+      <header className="pb-4 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-amber-400 flex items-center
+                        justify-center text-[#0b1220] text-lg font-bold
+                        shadow-lg shadow-amber-500/20">
+          ☀
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold text-slate-100 leading-tight">
+            solarVis AI
+          </h1>
+          <p className="text-xs text-slate-400">
+            AI-powered solar proposal assistant
+          </p>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
@@ -113,10 +122,10 @@ export default function ChatPanel() {
               <div key={i}
                 className={`flex ${user ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm
-                  whitespace-pre-wrap shadow-sm ${
+                  leading-relaxed whitespace-pre-wrap ${
                     user
-                      ? "bg-amber-500 text-white rounded-br-sm"
-                      : "bg-white text-gray-800 rounded-bl-sm"
+                      ? "bg-amber-400 text-[#0b1220] font-medium rounded-br-sm"
+                      : "bg-[#111d33] text-slate-100 border border-slate-800 rounded-bl-sm"
                   }`}>
                   {m.text}
                 </div>
@@ -131,10 +140,11 @@ export default function ChatPanel() {
                   <button key={o.value}
                     disabled={!active}
                     onClick={() => send(o.value)}
-                    className={`px-4 py-1.5 rounded-full text-sm border ${
+                    className={`px-4 py-1.5 rounded-full text-sm border
+                      transition ${
                       active
-                        ? "border-amber-500 text-amber-700 hover:bg-amber-50"
-                        : "border-gray-200 text-gray-400"
+                        ? "border-amber-400/70 text-amber-300 hover:bg-amber-400/10"
+                        : "border-slate-800 text-slate-600"
                     }`}>
                     {o.label}
                   </button>
@@ -144,7 +154,8 @@ export default function ChatPanel() {
           }
           if (m.type === "scene") {
             return (
-              <div key={i} className="bg-white rounded-lg shadow p-4">
+              <div key={i}
+                className="bg-[#0f1a2e] border border-slate-800 rounded-xl p-4">
                 <RoofScene
                   kwp={m.kwp}
                   showControls={false}
@@ -165,23 +176,25 @@ export default function ChatPanel() {
               <div key={i} className="flex flex-wrap gap-2 pl-1">
                 <button onClick={() => downloadPdf(m.kwp)} disabled={pdfBusy}
                   className="px-4 py-1.5 rounded-full text-sm border
-                             border-amber-500 text-amber-700 hover:bg-amber-50
-                             disabled:opacity-50">
+                             border-amber-400/70 text-amber-300
+                             hover:bg-amber-400/10 disabled:opacity-40
+                             transition">
                   {pdfBusy ? "Preparing PDF…" : "Download PDF report"}
                 </button>
                 {m.proposalUrl && (
                   <>
                     <a href={m.proposalUrl} target="_blank" rel="noreferrer"
-                      className="px-4 py-1.5 rounded-full text-sm bg-amber-500
-                                 text-white hover:bg-amber-600">
+                      className="px-4 py-1.5 rounded-full text-sm bg-amber-400
+                                 text-[#0b1220] font-medium hover:bg-amber-300
+                                 transition">
                       Open shareable proposal
                     </a>
                     <button
                       onClick={() =>
                         navigator.clipboard.writeText(m.proposalUrl!)}
                       className="px-4 py-1.5 rounded-full text-sm border
-                                 border-gray-300 text-gray-600
-                                 hover:bg-gray-100">
+                                 border-slate-700 text-slate-300
+                                 hover:bg-white/5 transition">
                       Copy link
                     </button>
                   </>
@@ -192,11 +205,16 @@ export default function ChatPanel() {
           return null;
         })}
         {busy && (
-          <div className="text-sm text-gray-400 pl-1">
-            solarVis AI is thinking…
+          <div className="flex items-center gap-1.5 pl-2 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400
+                             animate-bounce" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400
+                             animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400
+                             animate-bounce [animation-delay:300ms]" />
           </div>
         )}
-        {err && <p className="text-sm text-red-600">{err}</p>}
+        {err && <p className="text-sm text-red-400">{err}</p>}
         <div ref={endRef} />
       </div>
 
@@ -206,12 +224,14 @@ export default function ChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send(input)}
           placeholder="Type your message…"
-          className="flex-1 rounded-full border border-gray-300 px-4 py-2
-                     text-sm focus:outline-none focus:border-amber-500"
+          className="flex-1 rounded-full bg-[#0f1a2e] border border-slate-700
+                     px-4 py-2 text-sm text-slate-100 placeholder-slate-500
+                     focus:outline-none focus:border-amber-400 transition"
         />
         <button onClick={() => send(input)} disabled={busy}
-          className="px-5 py-2 rounded-full bg-amber-500 text-white text-sm
-                     font-medium disabled:opacity-50">
+          className="px-5 py-2 rounded-full bg-amber-400 text-[#0b1220]
+                     text-sm font-semibold hover:bg-amber-300
+                     disabled:opacity-40 transition">
           Send
         </button>
       </div>

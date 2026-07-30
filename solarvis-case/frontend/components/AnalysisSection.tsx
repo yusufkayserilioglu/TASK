@@ -29,32 +29,49 @@ export type Analysis = {
 };
 
 const eur = (v: number) =>
-  v.toLocaleString("tr-TR", { maximumFractionDigits: 0 }) + " €";
+  "€" + v.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
 export default function AnalysisSection({ data }: { data: Analysis | null }) {
   if (!data) return null;
 
   const stats = [
-    { k: "Yıllık üretim", v: `${data.annualProductionKwh.toLocaleString("tr-TR")} kWh` },
-    { k: "Tüketim karşılama", v: `%${Math.round(data.coverageRatio * 100)}` },
-    { k: "Yıllık tasarruf", v: eur(data.annualSavingsEur) },
-    { k: "Geri ödeme", v: data.paybackYears ? `${data.paybackYears} yıl` : "—" },
-    { k: "20 yıl net kazanç", v: eur(data.netBenefit20yEur) },
+    {
+      k: "Annual production",
+      v: `${data.annualProductionKwh.toLocaleString("en-US")} kWh`,
+    },
+    { k: "Coverage", v: `${Math.round(data.coverageRatio * 100)}%` },
+    { k: "Annual savings", v: eur(data.annualSavingsEur) },
+    {
+      k: "Payback",
+      v: data.paybackYears ? `${data.paybackYears} yrs` : "—",
+      accent: true,
+    },
+    { k: "20-yr net benefit", v: eur(data.netBenefit20yEur) },
   ];
 
   return (
-    <div className="w-full max-w-2xl bg-white rounded-lg shadow p-4 space-y-3">
-      <h3 className="font-semibold">
-        Finansal Analiz — {data.placement.actualKwp} kWp
-        {data.placement.actualKwp !== data.placement.requestedKwp &&
-          ` (istenen ${data.placement.requestedKwp} kWp, çatı kapasitesi kadarı kuruldu)`}
+    <div className="w-full max-w-2xl bg-[#0f1a2e] border border-slate-800
+                    rounded-xl p-4 space-y-3">
+      <h3 className="font-semibold text-slate-100">
+        Financial Analysis — {data.placement.actualKwp} kWp
+        {data.placement.actualKwp !== data.placement.requestedKwp && (
+          <span className="text-slate-400 font-normal text-sm">
+            {" "}(requested {data.placement.requestedKwp} kWp — sized to roof
+            capacity)
+          </span>
+        )}
       </h3>
 
-      <div className="grid grid-cols-5 gap-2 text-center">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
         {stats.map((s) => (
-          <div key={s.k} className="bg-gray-50 rounded p-2">
-            <div className="text-xs text-gray-500">{s.k}</div>
-            <div className="font-semibold text-sm">{s.v}</div>
+          <div key={s.k} className="bg-[#0b1526] border border-slate-800
+                                    rounded-lg p-2">
+            <div className="text-xs text-slate-400">{s.k}</div>
+            <div className={`font-semibold text-sm ${
+              s.accent ? "text-amber-300" : "text-slate-100"
+            }`}>
+              {s.v}
+            </div>
           </div>
         ))}
       </div>
@@ -63,28 +80,41 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data.cashflow}
             margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="year" />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v) => eur(Number(v))}
-              labelFormatter={(y) => `Yıl ${y}`} />
-            <ReferenceLine y={0} stroke="#64748b" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#1c2942" />
+            <XAxis dataKey="year" tick={{ fill: "#7d8db0", fontSize: 12 }}
+              stroke="#24344f" />
+            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              tick={{ fill: "#7d8db0", fontSize: 12 }} stroke="#24344f" />
+            <Tooltip
+              formatter={(v) => eur(Number(v))}
+              labelFormatter={(y) => `Year ${y}`}
+              contentStyle={{
+                background: "#0d1830", border: "1px solid #24344f",
+                borderRadius: 8, fontSize: 12,
+              }}
+              labelStyle={{ color: "#9fb0cd" }}
+              itemStyle={{ color: "#fbbf24" }}
+            />
+            <ReferenceLine y={0} stroke="#3b4a6b" />
             {data.paybackYears && (
-              <ReferenceLine x={Math.ceil(data.paybackYears)} stroke="#f59e0b"
-                label={{ value: `Geri ödeme ~${data.paybackYears} yıl`,
-                    fill: "#b45309", fontSize: 12, position: "insideTopLeft" }} />
+              <ReferenceLine x={Math.ceil(data.paybackYears)} stroke="#38bdf8"
+                label={{ value: `Payback ~${data.paybackYears} yrs`,
+                         fill: "#7dd3fc", fontSize: 12,
+                         position: "insideTopLeft" }} />
             )}
             <Area type="monotone" dataKey="cumulative"
-              name="Kümülatif nakit akışı"
-              stroke="#0ea5e9" fill="rgba(14,165,233,0.15)" />
+              name="Cumulative cash flow"
+              stroke="#fbbf24" strokeWidth={2}
+              fill="rgba(251,191,36,0.12)" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      <p className="text-xs text-gray-400">
-        Basitleştirilmiş model: sabit fiyat 0,25 €/kWh · degradasyon yok ·
-        tasarruf yıllık tüketimle ({data.inputs.annualConsumptionKwh.toLocaleString("tr-TR")} kWh)
-        sınırlı · CAPEX 10.000 (USD≈EUR 1:1)
+      <p className="text-xs text-slate-500">
+        Simplified model: flat tariff €0.25/kWh · no degradation · savings
+        capped at annual consumption (
+        {data.inputs.annualConsumptionKwh.toLocaleString("en-US")} kWh) ·
+        CAPEX $10,000 (≈EUR 1:1)
       </p>
     </div>
   );

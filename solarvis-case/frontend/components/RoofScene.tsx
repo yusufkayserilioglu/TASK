@@ -10,14 +10,19 @@ const DISPLAY_PX = 640;
 const FULL_SCALE = DISPLAY_PX / IMG_PX;
 const MARKING_MODE = false;
 
-const KIND_TR: Record<string, string> = {
-  eave: "Saçak", hip: "Hip", ridge: "Mahya",
+const KIND_EN: Record<string, string> = {
+  eave: "Eave", hip: "Hip", ridge: "Ridge",
 };
+
+const NAVY_CHIP = "rgba(9,16,30,0.88)";
+const AMBER = "#fbbf24";
+const INK = "#0b1220";
 
 type Edge = { from: number[]; to: number[]; kind: string; lengthM: number };
 type Facet = {
-  id: string; polygonPx: number[][]; projectedAreaM2: number;
-  trueAreaM2: number; azimuthDeg: number; compass: string;
+  id: string; polygonPx: number[][]; eave: number[][];
+  projectedAreaM2: number; trueAreaM2: number;
+  azimuthDeg: number; compass: string;
 };
 type Roof = {
   cornersPx: number[][]; ridgePx: number[][]; edges: Edge[]; facets: Facet[];
@@ -58,7 +63,7 @@ export default function RoofScene({
   const stageRef = useRef<any>(null);
   const lastShot = useRef("");
 
-  // Çekim modunda hover görselleri render'da tamamen bastırılır:
+  // Çekim modunda hover görselleri tamamen bastırılır (PDF temizliği):
   const hv: Hover = shooting ? null : hover;
 
   useEffect(() => {
@@ -96,7 +101,7 @@ export default function RoofScene({
       .catch((e) => setErr(String(e)));
   }, [kwp]);
 
-  // Sahne hazır olunca çekim moduna geç (PDF görseli için, bir kez)
+  // Sahne hazır -> çekim moduna geç (bir kez)
   useEffect(() => {
     if (!onSnapshot || !img || !roof || !pl) return;
     const sig = `${kwp}-${pl.placedPanels}`;
@@ -105,7 +110,7 @@ export default function RoofScene({
     return () => clearTimeout(t);
   }, [img, roof, pl, kwp, onSnapshot]);
 
-  // Çekim modu: hover bastırılmış halde render edilmiş sahneyi yakala
+  // Çekim modu: hover'sız render'ı yakala
   useEffect(() => {
     if (!shooting || !pl) return;
     const t = setTimeout(() => {
@@ -148,6 +153,96 @@ export default function RoofScene({
     ];
   }, [roof]);
 
+  const centroid = (poly: number[][]) => [
+    poly.reduce((s, p) => s + p[0], 0) / poly.length,
+    poly.reduce((s, p) => s + p[1], 0) / poly.length,
+  ];
+
+  // --- ETİKET YERLEŞİMİ ------------------------------------------------
+  // Saçak: dışa dik + kılavuz çizgi. Hip: kendi doğrultusunun köşeden dışarı
+  // uzantısı + kılavuz çizgi. Mahya: tek iç etiket, orta noktada kompakt.
+  const edgeLabels = useMemo(() => {
+    if (!roof) return [];
+    const D_EAVE = 48, D_HIP = 46;
+    const isRidgePt = (p: number[]) =>
+      roof.ridgePx.some((r) => r[0] === p[0] && r[1] === p[1]);
+    return roof.edges.map((e) => {
+      const mx = (e.from[0] + e.to[0]) / 2;
+      const my = (e.from[1] + e.to[1]) / 2;
+      if (e.kind === "eave") {
+        const dx = e.to[0] - e.from[0], dy = e.to[1] - e.from[1];
+        const len = Math.hypot(dx, dy) || 1;
+        let nx = -dy / len, ny = dx / len;
+        if (nx * (mx - center[0]) + ny * (my - center[1]) < 0) {
+          nx = -nx; ny = -ny;
+        }
+        return {
+          x: mx + nx * D_EAVE, y: my + ny * D_EAVE,
+          leader: [mx + nx * 8, my + ny * 8,
+                   mx + nx * (D_EAVE - 16), my + ny * (D_EAVE - 16)],
+        };
+      }
+      if (e.kind === "hip") {
+        const fromIsRidge = isRidgePt(e.from);
+        const corner = fromIsRidge ? e.to : e.from;
+        const ridgeEnd = fromIsRidge ? e.from : e.to;
+        const dx = corner[0] - ridgeEnd[0], dy = corner[1] - ridgeEnd[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len, uy = dy / len;
+        return {
+          x: corner[0] + ux * D_HIP, y: corner[1] + uy * D_HIP,
+          leader: [corner[0] + ux * 8, corner[1] + uy * 8,
+                   corner[0] + ux * (D_HIP - 16), corner[1] + uy * (D_HIP - 16)],
+        };
+      }
+      return { x: mx, y: my, leader: null }; // ridge
+    });
+  }, [roof, center]);
+
+  // Facet harflerini mahya bölgesinden saçağa doğru çek
+  const facetAnchors = useMemo(() => {
+    if (!roof) return [];
+    return roof.facets.map((f) => {
+      const c = centroid(f.polygonPx);
+      const em = [
+        (f.eave[0][0] + f.eave[1][0]) / 2,
+        (f.eave[0][1] + f.eave[1][1]) / 2,
+      ];
+      return [c[0] + (em[0] - c[0]) * 0.42, c[1] + (em[1] - c[1]) * 0.42];
+    });
+  }, [roof]);
+
+  // Hover bilgi kartı (HTML, canvas DIŞI -> çizime değmez, PDF'e giremez)
+  const toScreen = (p: number[]) => [
+    p[0] * view.scale + view.x,
+    p[1] * view.scale + view.y,
+  ];
+  const infoPanel = useMemo(() => {
+    if (!hv || !roof) return null;
+    if (hv.type === "edge") {
+      const e = roof.edges[hv.id];
+      const [sx, sy] = toScreen([
+        (e.from[0] + e.to[0]) / 2, (e.from[1] + e.to[1]) / 2,
+      ]);
+      return {
+        sx, sy, title: KIND_EN[e.kind],
+        rows: [["Length", `${e.lengthM.toFixed(2)} m`]] as [string, string][],
+      };
+    }
+    const f = roof.facets[hv.id];
+    const pf = pl?.perFacet.find((p) => p.facetId === f.id);
+    const [sx, sy] = toScreen(centroid(f.polygonPx));
+    return {
+      sx, sy, title: `Facet ${f.compass}`,
+      rows: [
+        ["Azimuth", `${f.azimuthDeg}°`],
+        ["True area", `${f.trueAreaM2} m²`],
+        ["Projected", `${f.projectedAreaM2} m²`],
+        ...(pf ? [["Panels", `${pf.placed}/${pf.capacity}`]] : []),
+      ] as [string, string][],
+    };
+  }, [hv, roof, pl, view]);
+
   function handleClick(e: any) {
     if (!MARKING_MODE || points.length >= 6) return;
     const stage = e.target.getStage();
@@ -166,11 +261,6 @@ export default function RoofScene({
         })
       : null;
 
-  const centroid = (poly: number[][]) => [
-    poly.reduce((s, p) => s + p[0], 0) / poly.length,
-    poly.reduce((s, p) => s + p[1], 0) / poly.length,
-  ];
-
   const totalTrue = roof
     ? roof.facets.reduce((s, f) => s + f.trueAreaM2, 0)
     : 0;
@@ -186,183 +276,224 @@ export default function RoofScene({
         className="flex flex-col items-center gap-2"
         style={{ cursor: hv ? "pointer" : "default" }}
       >
-        <Stage
-          ref={stageRef}
-          width={DISPLAY_PX} height={DISPLAY_PX}
-          scaleX={view.scale} scaleY={view.scale}
-          x={view.x} y={view.y}
-          onClick={handleClick}
-          className="rounded-lg overflow-hidden shadow"
-        >
-          <Layer>
-            {img && <KonvaImage image={img} width={IMG_PX} height={IMG_PX} />}
+        <div className="relative">
+          <Stage
+            ref={stageRef}
+            width={DISPLAY_PX} height={DISPLAY_PX}
+            scaleX={view.scale} scaleY={view.scale}
+            x={view.x} y={view.y}
+            onClick={handleClick}
+            className="rounded-xl overflow-hidden shadow-lg shadow-black/40
+                       ring-1 ring-slate-800"
+          >
+            <Layer>
+              {img && (
+                <KonvaImage image={img} width={IMG_PX} height={IMG_PX} />
+              )}
 
-            {MARKING_MODE &&
-              points.map((p, i) => (
-                <Circle key={i} x={p[0]} y={p[1]} radius={7}
-                  fill={i < 4 ? "#ef4444" : "#3b82f6"}
-                  stroke="white" strokeWidth={2} />
-              ))}
+              {MARKING_MODE &&
+                points.map((p, i) => (
+                  <Circle key={i} x={p[0]} y={p[1]} radius={7}
+                    fill={i < 4 ? "#ef4444" : "#3b82f6"}
+                    stroke="white" strokeWidth={2} />
+                ))}
 
-            {/* Facet dolguları (hover yakalayıcı) */}
-            {roof?.facets.map((f, i) => (
-              <Line
-                key={`fill-${f.id}`}
-                points={f.polygonPx.flat()}
-                closed
-                fill={
-                  hv?.type === "facet" && hv.id === i
-                    ? "rgba(250,204,21,0.30)"
-                    : "rgba(0,0,0,0.01)"
-                }
-                onMouseEnter={() => setHover({ type: "facet", id: i })}
-                onMouseLeave={() => setHover(null)}
-              />
-            ))}
-
-            {/* Paneller */}
-            {pl?.panels.map((p, i) => (
-              <Line key={`panel-${i}`}
-                points={p.polygonPx.flat()}
-                closed
-                fill="#16283f"
-                stroke="rgba(255,255,255,0.75)"
-                strokeWidth={0.8}
-                listening={false}
-              />
-            ))}
-
-            {/* 9 kenar */}
-            {roof?.edges.map((e, i) => {
-              const hovered = hv?.type === "edge" && hv.id === i;
-              return (
-                <Line key={i}
-                  points={[e.from[0], e.from[1], e.to[0], e.to[1]]}
-                  stroke={hovered ? "#facc15" : "white"}
-                  strokeWidth={hovered ? 4 : 2}
-                  hitStrokeWidth={18}
-                  shadowColor="black" shadowBlur={4} shadowOpacity={0.9}
-                  onMouseEnter={() => setHover({ type: "edge", id: i })}
+              {/* Facet dolguları (hover yakalayıcı) */}
+              {roof?.facets.map((f, i) => (
+                <Line
+                  key={`fill-${f.id}`}
+                  points={f.polygonPx.flat()}
+                  closed
+                  fill={
+                    hv?.type === "facet" && hv.id === i
+                      ? "rgba(251,191,36,0.22)"
+                      : "rgba(0,0,0,0.01)"
+                  }
+                  onMouseEnter={() => setHover({ type: "facet", id: i })}
                   onMouseLeave={() => setHover(null)}
                 />
-              );
-            })}
+              ))}
 
-            {/* Kenar etiketleri */}
-            {roof?.edges.map((e, i) => {
-              const hovered = hv?.type === "edge" && hv.id === i;
-              const mx = (e.from[0] + e.to[0]) / 2;
-              const my = (e.from[1] + e.to[1]) / 2;
-              let lx = mx, ly = my;
-              if (e.kind !== "ridge") {
-                const dx = e.to[0] - e.from[0], dy = e.to[1] - e.from[1];
-                const len = Math.hypot(dx, dy) || 1;
-                let nx = -dy / len, ny = dx / len;
-                if (nx * (mx - center[0]) + ny * (my - center[1]) < 0) {
-                  nx = -nx; ny = -ny;
-                }
-                const push = hovered ? 34 : 22;
-                lx = mx + nx * push; ly = my + ny * push;
-              }
-              return (
-                <Label key={`l${i}`} x={lx} y={ly}
-                  offsetX={hovered ? 40 : 16} offsetY={hovered ? 13 : 8}
-                  listening={false} opacity={hovered ? 1 : 0.8}>
-                  <Tag
-                    fill={hovered ? "rgba(202,138,4,0.95)" : "rgba(0,0,0,0.55)"}
-                    cornerRadius={3}
-                  />
-                  <Text
-                    text={hovered ? `${KIND_TR[e.kind]} · ${e.lengthM} m` : `${e.lengthM}`}
-                    fontSize={hovered ? 16 : 10}
-                    fill="white" padding={hovered ? 5 : 2}
-                  />
-                </Label>
-              );
-            })}
+              {/* Paneller */}
+              {pl?.panels.map((p, i) => (
+                <Line key={`panel-${i}`}
+                  points={p.polygonPx.flat()}
+                  closed
+                  fill="#101c33"
+                  stroke="rgba(147,197,253,0.55)"
+                  strokeWidth={0.8}
+                  listening={false}
+                />
+              ))}
 
-            {/* Facet etiketleri */}
-            {roof?.facets.map((f, i) => {
-              const hovered = hv?.type === "facet" && hv.id === i;
-              const [cx, cy] = centroid(f.polygonPx);
-              return (
-                <Label key={f.id} x={cx} y={cy}
-                  offsetX={hovered ? 62 : 9} offsetY={hovered ? 26 : 9}
-                  listening={false}>
-                  <Tag
-                    fill={hovered ? "rgba(202,138,4,0.95)" : "rgba(0,0,0,0.55)"}
-                    cornerRadius={3}
+              {/* 9 kenar */}
+              {roof?.edges.map((e, i) => {
+                const hovered = hv?.type === "edge" && hv.id === i;
+                return (
+                  <Line key={i}
+                    points={[e.from[0], e.from[1], e.to[0], e.to[1]]}
+                    stroke={hovered ? AMBER : "rgba(255,255,255,0.95)"}
+                    strokeWidth={hovered ? 3.5 : 2}
+                    hitStrokeWidth={18}
+                    shadowColor="black" shadowBlur={4} shadowOpacity={0.9}
+                    onMouseEnter={() => setHover({ type: "edge", id: i })}
+                    onMouseLeave={() => setHover(null)}
                   />
-                  <Text
-                    text={
-                      hovered
-                        ? `${f.compass} · ${f.azimuthDeg}°\nGerçek: ${f.trueAreaM2} m²\nİzdüşüm: ${f.projectedAreaM2} m²`
-                        : f.compass
-                    }
-                    fontSize={hovered ? 14 : 11}
-                    fill="white" padding={hovered ? 6 : 2}
-                  />
-                </Label>
-              );
-            })}
-          </Layer>
-        </Stage>
+                );
+              })}
+
+              {/* Kılavuz çizgileri */}
+              {roof?.edges.map((e, i) => {
+                const L = edgeLabels[i];
+                if (!L?.leader) return null;
+                const hovered = hv?.type === "edge" && hv.id === i;
+                return (
+                  <Line key={`ld${i}`} points={L.leader}
+                    stroke={hovered ? AMBER : "rgba(255,255,255,0.5)"}
+                    strokeWidth={hovered ? 1.5 : 1}
+                    listening={false} />
+                );
+              })}
+
+              {/* Ölçü etiketleri (sabit boyut, hover'da renk değişimi) */}
+              {roof?.edges.map((e, i) => {
+                const L = edgeLabels[i];
+                if (!L) return null;
+                const hovered = hv?.type === "edge" && hv.id === i;
+                return (
+                  <Label key={`l${i}`} x={L.x} y={L.y}
+                    offsetX={26} offsetY={10} listening={false}>
+                    <Tag
+                      fill={hovered ? AMBER : NAVY_CHIP}
+                      cornerRadius={4}
+                      stroke={hovered ? undefined : "rgba(251,191,36,0.35)"}
+                      strokeWidth={hovered ? 0 : 0.75}
+                    />
+                    <Text
+                      text={`${e.lengthM} m`}
+                      fontSize={14}
+                      fontFamily="Inter, system-ui, sans-serif"
+                      fontStyle={hovered ? "bold" : "normal"}
+                      fill={hovered ? INK : "#e7edf7"}
+                      padding={4}
+                    />
+                  </Label>
+                );
+              })}
+
+              {/* Facet harfleri */}
+              {roof?.facets.map((f, i) => {
+                const hovered = hv?.type === "facet" && hv.id === i;
+                const a = facetAnchors[i];
+                if (!a) return null;
+                return (
+                  <Label key={f.id} x={a[0]} y={a[1]}
+                    offsetX={11} offsetY={11} listening={false}>
+                    <Tag
+                      fill={hovered ? AMBER : NAVY_CHIP}
+                      cornerRadius={11}
+                      stroke={hovered ? undefined : "rgba(251,191,36,0.5)"}
+                      strokeWidth={hovered ? 0 : 1}
+                    />
+                    <Text
+                      text={f.compass}
+                      fontSize={14}
+                      fontFamily="Inter, system-ui, sans-serif"
+                      fontStyle="bold"
+                      fill={hovered ? INK : "#fde68a"}
+                      padding={5}
+                    />
+                  </Label>
+                );
+              })}
+            </Layer>
+          </Stage>
+
+          {/* Hover bilgi kartı — eleman hangi taraftaysa o tarafta */}
+          {infoPanel && (
+            <div
+              className="absolute z-10 pointer-events-none w-40 rounded-lg
+                         border border-amber-400/50 bg-[#0d1830]/95 px-3 py-2
+                         shadow-xl backdrop-blur-sm"
+              style={{
+                top: Math.min(Math.max(infoPanel.sy - 44, 10),
+                              DISPLAY_PX - 120),
+                ...(infoPanel.sx < DISPLAY_PX / 2
+                  ? { left: 10 }
+                  : { right: 10 }),
+              }}
+            >
+              <div className="text-amber-300 text-sm font-semibold mb-1">
+                {infoPanel.title}
+              </div>
+              {infoPanel.rows.map(([k, v]) => (
+                <div key={k}
+                  className="flex justify-between gap-2 text-xs leading-5">
+                  <span className="text-slate-400">{k}</span>
+                  <span className="font-mono text-slate-100">{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {!MARKING_MODE && showControls && (
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-col items-center gap-1.5">
             <div className="flex gap-2">
               {[3.6, 6.0, 9.6].map((k) => (
                 <button key={k} onClick={() => setKwp(k)}
-                  className={`px-3 py-1 rounded text-sm ${
+                  className={`px-3 py-1 rounded-md text-sm transition ${
                     kwp === k
-                      ? "bg-amber-500 text-white"
-                      : "bg-gray-200 hover:bg-gray-300"
+                      ? "bg-amber-400 text-[#0b1220] font-medium"
+                      : "bg-[#16233c] text-slate-300 hover:bg-[#1c2c4a]"
                   }`}>
                   {k} kWp
                 </button>
               ))}
               <button onClick={() => setFocus(!focus)}
-                className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm">
-                {focus ? "Tüm görüntü" : "Çatıya odaklan"}
+                className="px-3 py-1 rounded-md bg-[#16233c] text-slate-300
+                           hover:bg-[#1c2c4a] text-sm transition">
+                {focus ? "Full image" : "Focus roof"}
               </button>
             </div>
             {pl && (
-              <p className="text-sm text-gray-600">
-                {pl.placedPanels}/{pl.requestedPanels} panel yerleşti (
+              <p className="text-sm text-slate-400">
+                {pl.placedPanels}/{pl.requestedPanels} panels placed (
                 {pl.perFacet.filter((f) => f.placed > 0)
                   .map((f) => `${f.compass}: ${f.placed} ${f.orientation}`)
                   .join(", ")}
-                ){pl.yieldSource === "fallback" && " — çevrimdışı sıralama"}
+                ){pl.yieldSource === "fallback" && " — offline ranking"}
               </p>
             )}
             {pl?.warning && (
-              <p className="text-sm text-amber-700">{pl.warning}</p>
+              <p className="text-sm text-amber-400">{pl.warning}</p>
             )}
           </div>
         )}
 
         {MARKING_MODE && (
-          <div className="w-[640px] text-sm space-y-2">
-            <p className="text-gray-600">
+          <div className="w-[640px] text-sm space-y-2 text-slate-300">
+            <p>
               {points.length < 4
-                ? `Dış köşe ${points.length + 1}/4 — merkezdeki evin çatı köşelerine SIRAYLA tıkla`
+                ? `Outer corner ${points.length + 1}/4 — click the roof corners of the CENTER house IN ORDER`
                 : points.length < 6
-                ? `Sırt ucu ${points.length - 3}/2 — mahya çizgisinin iki ucuna tıkla`
-                : "Bitti! JSON'u backend/data/roof.json olarak kaydet."}
+                ? `Ridge end ${points.length - 3}/2 — click both ends of the ridge line`
+                : "Done! Save the JSON below as backend/data/roof.json."}
             </p>
             <button onClick={() => setPoints(points.slice(0, -1))}
-              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">
-              Son noktayı geri al
+              className="px-3 py-1 rounded bg-[#16233c] hover:bg-[#1c2c4a]">
+              Undo last point
             </button>
             {json && (
-              <pre className="bg-gray-900 text-green-300 p-3 rounded overflow-x-auto">
+              <pre className="bg-black/50 text-emerald-300 p-3 rounded
+                              overflow-x-auto">
                 {json}
               </pre>
             )}
           </div>
         )}
 
-        {err && <p className="text-red-600 text-sm">{err}</p>}
+        {err && <p className="text-red-400 text-sm">{err}</p>}
       </div>
 
       {/* ---------------- ÖLÇÜ TABLOSU ---------------- */}
@@ -370,10 +501,10 @@ export default function RoofScene({
         <div className={
           tableLayout === "below"
             ? "w-full grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm pt-1"
-            : "w-80 bg-white rounded-lg shadow p-4 text-sm space-y-4"
+            : "w-80 bg-[#0f1a2e] border border-slate-800 rounded-xl p-4 text-sm space-y-4"
         }>
           <div>
-            <h3 className="font-semibold mb-1">Kenarlar</h3>
+            <h3 className="font-semibold mb-1 text-slate-200">Edges</h3>
             <table className="w-full">
               <tbody>
                 {roof.edges.map((e, i) => (
@@ -383,14 +514,14 @@ export default function RoofScene({
                     onMouseLeave={() => setHover(null)}
                     className={
                       hv?.type === "edge" && hv.id === i
-                        ? "bg-amber-100"
-                        : "hover:bg-gray-50"
+                        ? "bg-amber-400/10"
+                        : "hover:bg-white/5"
                     }
                   >
-                    <td className="py-0.5 pr-2 text-gray-500">
-                      {KIND_TR[e.kind]}
+                    <td className="py-0.5 pr-2 text-slate-400">
+                      {KIND_EN[e.kind]}
                     </td>
-                    <td className="py-0.5 text-right font-mono">
+                    <td className="py-0.5 text-right font-mono text-slate-100">
                       {e.lengthM.toFixed(2)} m
                     </td>
                   </tr>
@@ -400,15 +531,17 @@ export default function RoofScene({
           </div>
 
           <div>
-            <h3 className="font-semibold mb-1">Facetler (25° eğim)</h3>
+            <h3 className="font-semibold mb-1 text-slate-200">
+              Facets (25° pitch)
+            </h3>
             <table className="w-full">
               <thead>
-                <tr className="text-gray-500 text-xs">
-                  <th className="text-left font-normal">Yön</th>
-                  <th className="text-right font-normal">Azimut</th>
-                  <th className="text-right font-normal">İzdüşüm</th>
-                  <th className="text-right font-normal">Gerçek</th>
-                  <th className="text-right font-normal">Panel</th>
+                <tr className="text-slate-500 text-xs">
+                  <th className="text-left font-normal">Dir</th>
+                  <th className="text-right font-normal">Azimuth</th>
+                  <th className="text-right font-normal">Projected</th>
+                  <th className="text-right font-normal">True</th>
+                  <th className="text-right font-normal">Panels</th>
                 </tr>
               </thead>
               <tbody>
@@ -421,36 +554,38 @@ export default function RoofScene({
                       onMouseLeave={() => setHover(null)}
                       className={
                         hv?.type === "facet" && hv.id === i
-                          ? "bg-amber-100"
-                          : "hover:bg-gray-50"
+                          ? "bg-amber-400/10"
+                          : "hover:bg-white/5"
                       }
                     >
-                      <td className="py-0.5">{f.compass}</td>
-                      <td className="py-0.5 text-right font-mono">
+                      <td className="py-0.5 text-slate-300">{f.compass}</td>
+                      <td className="py-0.5 text-right font-mono text-slate-100">
                         {f.azimuthDeg}°
                       </td>
-                      <td className="py-0.5 text-right font-mono">
+                      <td className="py-0.5 text-right font-mono text-slate-100">
                         {f.projectedAreaM2}
                       </td>
-                      <td className="py-0.5 text-right font-mono">
+                      <td className="py-0.5 text-right font-mono text-slate-100">
                         {f.trueAreaM2}
                       </td>
-                      <td className="py-0.5 text-right font-mono">
+                      <td className="py-0.5 text-right font-mono text-slate-100">
                         {pf ? `${pf.placed}/${pf.capacity}` : "–"}
                       </td>
                     </tr>
                   );
                 })}
-                <tr className="border-t font-medium">
-                  <td className="py-0.5" colSpan={4}>Toplam gerçek alan</td>
-                  <td className="py-0.5 text-right font-mono">
+                <tr className="border-t border-slate-700 font-medium">
+                  <td className="py-0.5 text-slate-300" colSpan={4}>
+                    Total true area
+                  </td>
+                  <td className="py-0.5 text-right font-mono text-amber-300">
                     {totalTrue.toFixed(1)} m²
                   </td>
                 </tr>
               </tbody>
             </table>
-            <p className="text-xs text-gray-400 mt-1">
-              Alanlar m² · Panel = yerleşen/kapasite
+            <p className="text-xs text-slate-500 mt-1">
+              Areas in m² · Panels = placed/capacity · hover rows to highlight
             </p>
           </div>
         </div>
