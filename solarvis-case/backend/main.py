@@ -12,7 +12,18 @@ from roof import build_roof_model
 
 from panels import place_panels
 
-from finance import analyze
+from config import FIXED_LAT, FIXED_LON, ZOOM, SCALE, SIZE, IMG_PX, meters_per_pixel
+
+from pipeline import run_pipeline
+
+from pydantic import BaseModel
+
+from chat import handle_message, start_conversation
+
+class ChatMessageIn(BaseModel):
+    conversationId: str
+    message: str
+
 
 load_dotenv()  # backend/.env dosyasındaki anahtarları okur
 
@@ -25,16 +36,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# config ve pipeline çözdü
 # --- Sabitler ---------------------------------------------------------------
 # Case'teki koordinat (34.046..., 18.464...) pozitif enlemle Akdeniz'de denize
 # düşüyor; case görsellerindeki mahalle Cape Town'a ait. Bu yüzden enlemi
 # negatif alıyoruz. (README ve DECISIONS.md'ye not düşülecek.)
-FIXED_LAT = -34.04658242871865
-FIXED_LON = 18.46491476666948
-ZOOM = 20
-SCALE = 2              # Google'dan 2x (retina) çözünürlük iste
-SIZE = 640             # istek boyutu; scale=2 ile gelen görüntü 1280x1280 px
-IMG_PX = SIZE * SCALE  # 1280 — tüm piksel koordinat sistemimiz bu boyutta
+# FIXED_LAT = -34.04658242871865
+# FIXED_LON = 18.46491476666948
+# ZOOM = 20
+# SCALE = 2              # Google'dan 2x (retina) çözünürlük iste
+# SIZE = 640             # istek boyutu; scale=2 ile gelen görüntü 1280x1280 px
+# IMG_PX = SIZE * SCALE  # 1280 — tüm piksel koordinat sistemimiz bu boyutta
 
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -42,16 +54,16 @@ SATELLITE_CACHE = DATA_DIR / "satellite.png"
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
+# config ve pipeline çözdü
+# def meters_per_pixel(lat: float, zoom: int, scale: int) -> float:
+#     """Web Mercator'da bu enlemde 1 pikselin kaç metre olduğu.
 
-def meters_per_pixel(lat: float, zoom: int, scale: int) -> float:
-    """Web Mercator'da bu enlemde 1 pikselin kaç metre olduğu.
-
-    156543.03392 = 2 * pi * 6378137 (Dünya yarıçapı) / 256
-    yani zoom 0'da, ekvatorda, tek tile'lık dünyada metre/piksel.
-    Her zoom seviyesi çözünürlüğü ikiye katlar (2**zoom),
-    scale=2 retina görüntüde her piksel yarı mesafeye denk gelir.
-    """
-    return 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom) / scale
+#     156543.03392 = 2 * pi * 6378137 (Dünya yarıçapı) / 256
+#     yani zoom 0'da, ekvatorda, tek tile'lık dünyada metre/piksel.
+#     Her zoom seviyesi çözünürlüğü ikiye katlar (2**zoom),
+#     scale=2 retina görüntüde her piksel yarı mesafeye denk gelir.
+#     """
+#     return 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom) / scale
 
 
 @app.get("/api/health")
@@ -142,26 +154,23 @@ def analysis(kwp: float = 6.0):
                             detail="kwp yalnızca 3.6, 6.0 veya 9.6 olabilir.")
     if not (DATA_DIR / "roof.json").exists():
         raise HTTPException(status_code=404, detail="data/roof.json bulunamadı.")
-
-    mpp = meters_per_pixel(FIXED_LAT, ZOOM, SCALE)
-    model = build_roof_model(mpp)
-    placement = place_panels(model, kwp, mpp, FIXED_LAT, FIXED_LON)
-
-    if placement["yieldSource"] != "pvgis":
-        raise HTTPException(
-            status_code=503,
-            detail="PVGIS verisi yok (ağ erişimi ve cache bulunamadı); "
-                   "üretim hesabı yapılamıyor.",
-        )
-
-    total = sum(f["estAnnualKwh"] or 0 for f in placement["perFacet"])
-    result = analyze(total)
-    result["placement"] = {
-        "requestedKwp": placement["requestedKwp"],
-        "actualKwp": round(placement["placedPanels"] * 0.4, 1),
-        "placedPanels": placement["placedPanels"],
-        "requestedPanels": placement["requestedPanels"],
-        "warning": placement["warning"],
-        "perFacet": placement["perFacet"],
-    }
+    _, result = run_pipeline(kwp)
+    if result is None:
+        raise HTTPException(status_code=503,
+                            detail="PVGIS verisi yok (ağ + cache bulunamadı).")
     return result
+
+
+@app.post("/api/chat/start")
+def chat_start():
+    cid, messages = start_conversation()
+    return {"conversationId": cid, "messages": messages}
+
+
+@app.post("/api/chat/message")
+def chat_message(body: ChatMessageIn):
+    messages = handle_message(body.conversationId, body.message)
+    if messages is None:
+        raise HTTPException(status_code=404,
+                            detail="Konuşma bulunamadı; sayfayı yenileyin.")
+    return {"messages": messages}

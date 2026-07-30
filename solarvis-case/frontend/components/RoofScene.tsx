@@ -5,9 +5,6 @@ import {
   Stage, Layer, Image as KonvaImage, Circle, Line, Text, Label, Tag,
 } from "react-konva";
 
-import AnalysisSection, { Analysis } from "./AnalysisSection";
-
-
 const IMG_PX = 1280;
 const DISPLAY_PX = 640;
 const FULL_SCALE = DISPLAY_PX / IMG_PX;
@@ -36,16 +33,27 @@ type PanelsResp = {
 };
 type Hover = { type: "edge" | "facet"; id: number } | null;
 
-export default function RoofScene() {
+export default function RoofScene({
+  kwp: kwpProp,
+  showControls = true,
+  showTable = true,
+}: {
+  kwp?: number;
+  showControls?: boolean;
+  showTable?: boolean;
+}) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [points, setPoints] = useState<number[][]>([]);
   const [roof, setRoof] = useState<Roof | null>(null);
   const [focus, setFocus] = useState(true);
   const [hover, setHover] = useState<Hover>(null);
-  const [kwp, setKwp] = useState(6.0);
+  const [kwp, setKwp] = useState(kwpProp ?? 6.0);
   const [pl, setPl] = useState<PanelsResp | null>(null);
-  const [an, setAn] = useState<Analysis | null>(null);
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (kwpProp !== undefined) setKwp(kwpProp);
+  }, [kwpProp]);
 
   useEffect(() => {
     const image = new window.Image();
@@ -69,20 +77,12 @@ export default function RoofScene() {
     if (MARKING_MODE) return;
     setErr("");
     setPl(null);
-    setAn(null);
     fetch(`http://localhost:8000/api/panels?kwp=${kwp}`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json()).detail);
         return r.json();
       })
       .then(setPl)
-      .catch((e) => setErr(String(e)));
-    fetch(`http://localhost:8000/api/analysis?kwp=${kwp}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).detail);
-        return r.json();
-      })
-      .then(setAn)
       .catch((e) => setErr(String(e)));
   }, [kwp]);
 
@@ -182,7 +182,7 @@ export default function RoofScene() {
               />
             ))}
 
-            {/* Paneller: facet dolgusunun üstünde, çatı çizgilerinin altında */}
+            {/* Paneller */}
             {pl?.panels.map((p, i) => (
               <Line key={`panel-${i}`}
                 points={p.polygonPx.flat()}
@@ -270,7 +270,7 @@ export default function RoofScene() {
           </Layer>
         </Stage>
 
-        {!MARKING_MODE && (
+        {!MARKING_MODE && showControls && (
           <div className="flex flex-col items-center gap-1">
             <div className="flex gap-2">
               {[3.6, 6.0, 9.6].map((k) => (
@@ -303,8 +303,6 @@ export default function RoofScene() {
           </div>
         )}
 
-        {!MARKING_MODE && <AnalysisSection data={an} />}
-
         {MARKING_MODE && (
           <div className="w-[640px] text-sm space-y-2">
             <p className="text-gray-600">
@@ -330,7 +328,7 @@ export default function RoofScene() {
       </div>
 
       {/* ---------------- ÖLÇÜ TABLOSU ---------------- */}
-      {roof && !MARKING_MODE && (
+      {roof && !MARKING_MODE && showTable && (
         <div className="w-80 bg-white rounded-lg shadow p-4 text-sm space-y-4">
           <div>
             <h3 className="font-semibold mb-1">Kenarlar</h3>

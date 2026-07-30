@@ -66,7 +66,7 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="year" />
             <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: number) => eur(v)}
+            <Tooltip formatter={(v) => eur(Number(v))}
               labelFormatter={(y) => `Yıl ${y}`} />
             <ReferenceLine y={0} stroke="#64748b" />
             {data.paybackYears && (
