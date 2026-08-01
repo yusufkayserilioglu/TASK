@@ -135,8 +135,8 @@ def place_panels(model, kwp: float, mpp: float, lat: float, lon: float):
         "requestedPanels": requested,
         "placedPanels": requested - remaining,
         "yieldSource": yield_source,
-        "warning": (f"Çatı kapasitesi yetersiz: istenen {requested} panelden "
-                    f"{requested - remaining} tanesi yerleştirilebildi.")
+        "warning": (f"Roof capacity limits the system to "
+                    f"{requested - remaining} of {requested} panels.")
         if remaining > 0 else None,
         "panels": panels,
         "perFacet": per_facet,

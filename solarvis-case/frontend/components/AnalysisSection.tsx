@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, ComposedChart, Area, XAxis, YAxis,
   Tooltip, CartesianGrid, ReferenceLine,
 } from "recharts";
+import { useLang } from "./LanguageProvider";
 
 export type Analysis = {
   inputs: {
@@ -28,36 +29,39 @@ export type Analysis = {
   };
 };
 
-const eur = (v: number) =>
-  "€" + v.toLocaleString("en-US", { maximumFractionDigits: 0 });
-
 export default function AnalysisSection({ data }: { data: Analysis | null }) {
+  const { lang, t } = useLang();
   if (!data) return null;
+
+  const locale = lang === "tr" ? "tr-TR" : "en-US";
+  const eur = (v: number) =>
+    "€" + v.toLocaleString(locale, { maximumFractionDigits: 0 });
 
   const stats = [
     {
-      k: "Annual production",
-      v: `${data.annualProductionKwh.toLocaleString("en-US")} kWh`,
+      k: t.analysis.annualProduction,
+      v: `${data.annualProductionKwh.toLocaleString(locale)} kWh`,
     },
-    { k: "Coverage", v: `${Math.round(data.coverageRatio * 100)}%` },
-    { k: "Annual savings", v: eur(data.annualSavingsEur) },
+    { k: t.analysis.coverage, v: `${Math.round(data.coverageRatio * 100)}%` },
+    { k: t.analysis.annualSavings, v: eur(data.annualSavingsEur) },
     {
-      k: "Payback",
-      v: data.paybackYears ? `${data.paybackYears} yrs` : "—",
+      k: t.analysis.payback,
+      v: data.paybackYears
+        ? `${data.paybackYears} ${t.analysis.yrs}`
+        : "—",
       accent: true,
     },
-    { k: "20-yr net benefit", v: eur(data.netBenefit20yEur) },
+    { k: t.analysis.net20, v: eur(data.netBenefit20yEur) },
   ];
 
   return (
     <div className="w-full max-w-2xl bg-[#0f1a2e] border border-slate-800
                     rounded-xl p-4 space-y-3">
       <h3 className="font-semibold text-slate-100">
-        Financial Analysis — {data.placement.actualKwp} kWp
+        {t.analysis.title} — {data.placement.actualKwp} kWp
         {data.placement.actualKwp !== data.placement.requestedKwp && (
           <span className="text-slate-400 font-normal text-sm">
-            {" "}(requested {data.placement.requestedKwp} kWp — sized to roof
-            capacity)
+            {t.analysis.sized(data.placement.requestedKwp)}
           </span>
         )}
       </h3>
@@ -87,7 +91,7 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
               tick={{ fill: "#7d8db0", fontSize: 12 }} stroke="#24344f" />
             <Tooltip
               formatter={(v) => eur(Number(v))}
-              labelFormatter={(y) => `Year ${y}`}
+              labelFormatter={(y) => `${t.analysis.year} ${y}`}
               contentStyle={{
                 background: "#0d1830", border: "1px solid #24344f",
                 borderRadius: 8, fontSize: 12,
@@ -98,12 +102,12 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
             <ReferenceLine y={0} stroke="#3b4a6b" />
             {data.paybackYears && (
               <ReferenceLine x={Math.ceil(data.paybackYears)} stroke="#38bdf8"
-                label={{ value: `Payback ~${data.paybackYears} yrs`,
+                label={{ value: t.analysis.paybackLine(data.paybackYears),
                          fill: "#7dd3fc", fontSize: 12,
                          position: "insideTopLeft" }} />
             )}
             <Area type="monotone" dataKey="cumulative"
-              name="Cumulative cash flow"
+              name={t.analysis.series}
               stroke="#fbbf24" strokeWidth={2}
               fill="rgba(251,191,36,0.12)" />
           </ComposedChart>
@@ -111,10 +115,9 @@ export default function AnalysisSection({ data }: { data: Analysis | null }) {
       </div>
 
       <p className="text-xs text-slate-500">
-        Simplified model: flat tariff €0.25/kWh · no degradation · savings
-        capped at annual consumption (
-        {data.inputs.annualConsumptionKwh.toLocaleString("en-US")} kWh) ·
-        CAPEX $10,000 (≈EUR 1:1)
+        {t.analysis.footnote(
+          data.inputs.annualConsumptionKwh.toLocaleString(locale)
+        )}
       </p>
     </div>
   );

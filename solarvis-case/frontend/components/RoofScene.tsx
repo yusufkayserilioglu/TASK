@@ -4,15 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Stage, Layer, Image as KonvaImage, Circle, Line, Arrow, Text, Label, Tag,
 } from "react-konva";
+import { useLang } from "./LanguageProvider";
 
 const IMG_PX = 1280;
 const DISPLAY_PX = 640;
 const FULL_SCALE = DISPLAY_PX / IMG_PX;
 const MARKING_MODE = false;
-
-const KIND_EN: Record<string, string> = {
-  eave: "Eave", hip: "Hip", ridge: "Ridge",
-};
 
 const NAVY_CHIP = "rgba(9,16,30,0.88)";
 const AMBER = "#fbbf24";
@@ -51,6 +48,7 @@ export default function RoofScene({
   tableLayout?: "side" | "below";
   onSnapshot?: (dataUrl: string) => void;
 }) {
+  const { t } = useLang();
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [points, setPoints] = useState<number[][]>([]);
   const [roof, setRoof] = useState<Roof | null>(null);
@@ -106,14 +104,14 @@ export default function RoofScene({
     if (!onSnapshot || !img || !roof || !pl) return;
     const sig = `${kwp}-${pl.placedPanels}`;
     if (lastShot.current === sig) return;
-    const t = setTimeout(() => setShooting(true), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShooting(true), 400);
+    return () => clearTimeout(timer);
   }, [img, roof, pl, kwp, onSnapshot]);
 
   // Çekim modu: hover'sız render'ı yakala
   useEffect(() => {
     if (!shooting || !pl) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const url = stageRef.current?.toDataURL({ pixelRatio: 2 });
       if (url) {
         lastShot.current = `${kwp}-${pl.placedPanels}`;
@@ -121,7 +119,7 @@ export default function RoofScene({
       }
       setShooting(false);
     }, 100);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [shooting, pl, kwp, onSnapshot]);
 
   const view = useMemo(() => {
@@ -159,8 +157,6 @@ export default function RoofScene({
   ];
 
   // --- ETİKET YERLEŞİMİ ------------------------------------------------
-  // Saçak: dışa dik. Hip: kendi doğrultusunun köşeden dışarı uzantısı.
-  // Ok: ETİKETTEN kenara doğru işaret eder. Mahya: iç kompakt çip.
   const edgeLabels = useMemo(() => {
     if (!roof) return [];
     const D_EAVE = 48, D_HIP = 46;
@@ -200,7 +196,6 @@ export default function RoofScene({
     });
   }, [roof, center]);
 
-  // Facet harflerini mahya bölgesinden saçağa doğru çek
   const facetAnchors = useMemo(() => {
     if (!roof) return [];
     return roof.facets.map((f) => {
@@ -213,7 +208,6 @@ export default function RoofScene({
     });
   }, [roof]);
 
-  // Hover bilgi kartı (HTML, canvas DIŞI -> çizime değmez, PDF'e giremez)
   const toScreen = (p: number[]) => [
     p[0] * view.scale + view.x,
     p[1] * view.scale + view.y,
@@ -226,30 +220,31 @@ export default function RoofScene({
         (e.from[0] + e.to[0]) / 2, (e.from[1] + e.to[1]) / 2,
       ]);
       return {
-        sx, sy, title: KIND_EN[e.kind],
-        rows: [["Length", `${e.lengthM.toFixed(2)} m`]] as [string, string][],
+        sx, sy, title: t.scene.kind[e.kind],
+        rows: [[t.scene.length, `${e.lengthM.toFixed(2)} m`]] as
+          [string, string][],
       };
     }
     const f = roof.facets[hv.id];
     const pf = pl?.perFacet.find((p) => p.facetId === f.id);
     const [sx, sy] = toScreen(centroid(f.polygonPx));
     return {
-      sx, sy, title: `Facet ${f.compass}`,
+      sx, sy, title: `${t.scene.facet} ${f.compass}`,
       rows: [
-        ["Azimuth", `${f.azimuthDeg}°`],
-        ["True area", `${f.trueAreaM2} m²`],
-        ["Projected", `${f.projectedAreaM2} m²`],
-        ...(pf ? [["Panels", `${pf.placed}/${pf.capacity}`]] : []),
+        [t.scene.azimuth, `${f.azimuthDeg}°`],
+        [t.scene.trueArea, `${f.trueAreaM2} m²`],
+        [t.scene.projectedShort, `${f.projectedAreaM2} m²`],
+        ...(pf ? [[t.scene.panels, `${pf.placed}/${pf.capacity}`]] : []),
       ] as [string, string][],
     };
-  }, [hv, roof, pl, view]);
+  }, [hv, roof, pl, view, t]);
 
   function handleClick(e: any) {
     if (!MARKING_MODE || points.length >= 6) return;
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    const t = stage.getAbsoluteTransform().copy().invert();
-    const p = t.point(pos);
+    const tr = stage.getAbsoluteTransform().copy().invert();
+    const p = tr.point(pos);
     setPoints([...points, [Math.round(p.x), Math.round(p.y)]]);
   }
 
@@ -298,7 +293,6 @@ export default function RoofScene({
                     stroke="white" strokeWidth={2} />
                 ))}
 
-              {/* Facet dolguları (hover yakalayıcı) */}
               {roof?.facets.map((f, i) => (
                 <Line
                   key={`fill-${f.id}`}
@@ -314,7 +308,6 @@ export default function RoofScene({
                 />
               ))}
 
-              {/* Paneller */}
               {pl?.panels.map((p, i) => (
                 <Line key={`panel-${i}`}
                   points={p.polygonPx.flat()}
@@ -326,7 +319,6 @@ export default function RoofScene({
                 />
               ))}
 
-              {/* 9 kenar */}
               {roof?.edges.map((e, i) => {
                 const hovered = hv?.type === "edge" && hv.id === i;
                 return (
@@ -342,7 +334,6 @@ export default function RoofScene({
                 );
               })}
 
-              {/* Kılavuz okları: etiketten kenara işaret eder */}
               {roof?.edges.map((e, i) => {
                 const L = edgeLabels[i];
                 if (!L?.leader) return null;
@@ -361,7 +352,6 @@ export default function RoofScene({
                 );
               })}
 
-              {/* Ölçü etiketleri (sabit boyut, hover'da renk değişimi) */}
               {roof?.edges.map((e, i) => {
                 const L = edgeLabels[i];
                 if (!L) return null;
@@ -387,7 +377,6 @@ export default function RoofScene({
                 );
               })}
 
-              {/* Facet harfleri */}
               {roof?.facets.map((f, i) => {
                 const hovered = hv?.type === "facet" && hv.id === i;
                 const a = facetAnchors[i];
@@ -415,7 +404,6 @@ export default function RoofScene({
             </Layer>
           </Stage>
 
-          {/* Hover bilgi kartı — eleman hangi taraftaysa o tarafta */}
           {infoPanel && (
             <div
               className="absolute z-10 pointer-events-none w-40 rounded-lg border border-amber-400/50 bg-[#0d1830]/95 px-3 py-2 shadow-xl backdrop-blur-sm"
@@ -456,20 +444,25 @@ export default function RoofScene({
               ))}
               <button onClick={() => setFocus(!focus)}
                 className="px-3 py-1 rounded-md bg-[#16233c] text-slate-300 hover:bg-[#1c2c4a] text-sm transition">
-                {focus ? "Full image" : "Focus roof"}
+                {focus ? t.scene.fullImage : t.scene.focusRoof}
               </button>
             </div>
             {pl && (
               <p className="text-sm text-slate-400">
-                {pl.placedPanels}/{pl.requestedPanels} panels placed (
+                {t.scene.placed(pl.placedPanels, pl.requestedPanels)} (
                 {pl.perFacet.filter((f) => f.placed > 0)
-                  .map((f) => `${f.compass}: ${f.placed} ${f.orientation}`)
+                  .map((f) =>
+                    `${f.compass}: ${f.placed} ${
+                      t.scene.orientation[f.orientation] ?? f.orientation
+                    }`)
                   .join(", ")}
-                ){pl.yieldSource === "fallback" && " — offline ranking"}
+                ){pl.yieldSource === "fallback" && t.scene.offline}
               </p>
             )}
-            {pl?.warning && (
-              <p className="text-sm text-amber-400">{pl.warning}</p>
+            {pl && pl.placedPanels < pl.requestedPanels && (
+              <p className="text-sm text-amber-400">
+                {t.scene.capacity(pl.placedPanels, pl.requestedPanels)}
+              </p>
             )}
           </div>
         )}
@@ -506,7 +499,9 @@ export default function RoofScene({
             : "w-80 bg-[#0f1a2e] border border-slate-800 rounded-xl p-4 text-sm space-y-4"
         }>
           <div>
-            <h3 className="font-semibold mb-1 text-slate-200">Edges</h3>
+            <h3 className="font-semibold mb-1 text-slate-200">
+              {t.scene.edges}
+            </h3>
             <table className="w-full">
               <tbody>
                 {roof.edges.map((e, i) => (
@@ -521,7 +516,7 @@ export default function RoofScene({
                     }
                   >
                     <td className="py-0.5 pr-2 text-slate-400">
-                      {KIND_EN[e.kind]}
+                      {t.scene.kind[e.kind]}
                     </td>
                     <td className="py-0.5 text-right font-mono text-slate-100">
                       {e.lengthM.toFixed(2)} m
@@ -534,16 +529,24 @@ export default function RoofScene({
 
           <div>
             <h3 className="font-semibold mb-1 text-slate-200">
-              Facets (25° pitch)
+              {t.scene.facetsTitle}
             </h3>
             <table className="w-full">
               <thead>
                 <tr className="text-slate-500 text-xs">
-                  <th className="text-left font-normal">Dir</th>
-                  <th className="text-right font-normal">Azimuth</th>
-                  <th className="text-right font-normal">Projected</th>
-                  <th className="text-right font-normal">True</th>
-                  <th className="text-right font-normal">Panels</th>
+                  <th className="text-left font-normal">{t.scene.dir}</th>
+                  <th className="text-right font-normal">
+                    {t.scene.azimuth}
+                  </th>
+                  <th className="text-right font-normal">
+                    {t.scene.projected}
+                  </th>
+                  <th className="text-right font-normal">
+                    {t.scene.trueCol}
+                  </th>
+                  <th className="text-right font-normal">
+                    {t.scene.panels}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -578,7 +581,7 @@ export default function RoofScene({
                 })}
                 <tr className="border-t border-slate-700 font-medium">
                   <td className="py-0.5 text-slate-300" colSpan={4}>
-                    Total true area
+                    {t.scene.totalTrue}
                   </td>
                   <td className="py-0.5 text-right font-mono text-amber-300">
                     {totalTrue.toFixed(1)} m²
@@ -586,9 +589,7 @@ export default function RoofScene({
                 </tr>
               </tbody>
             </table>
-            <p className="text-xs text-slate-500 mt-1">
-              Areas in m² · Panels = placed/capacity · hover rows to highlight
-            </p>
+            <p className="text-xs text-slate-500 mt-1">{t.scene.tableNote}</p>
           </div>
         </div>
       )}

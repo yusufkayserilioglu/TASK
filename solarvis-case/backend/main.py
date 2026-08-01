@@ -133,20 +133,26 @@ def analysis(kwp: float = 6.0):
 
 # ---------------- Chat ----------------
 
+class ChatStartIn(BaseModel):
+    lang: str = "en"
+
+
 class ChatMessageIn(BaseModel):
     conversationId: str
     message: str
+    lang: str = "en"
 
 
 @app.post("/api/chat/start")
-def chat_start():
-    cid, messages = start_conversation()
+def chat_start(body: ChatStartIn | None = None):
+    lang = body.lang if body else "en"
+    cid, messages = start_conversation(lang)
     return {"conversationId": cid, "messages": messages}
 
 
 @app.post("/api/chat/message")
 def chat_message(body: ChatMessageIn):
-    messages = handle_message(body.conversationId, body.message)
+    messages = handle_message(body.conversationId, body.message, body.lang)
     if messages is None:
         raise HTTPException(status_code=404,
                             detail="Konuşma bulunamadı; sayfayı yenileyin.")
