@@ -6,3 +6,7 @@ DECISIONS.md export-ignore
 *.pyc export-ignore
 **/CLAUDE.md export-ignore
 **/AGENTS.md export-ignore
+solarvis-case/backend/__pycache__/** export-ignore
+*.pyc export-ignore
+solarvis-case/frontend/AGENTS.md export-ignore
+solarvis-case/frontend/CLAUDE.md export-ignore
