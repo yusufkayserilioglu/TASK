@@ -102,6 +102,16 @@ const en = {
       paybackV: (p: string) => `~${p} years`,
     },
     replay: "Replay placement",
+    slider: {
+      title: "Explore by year",
+      year: "Year",
+      cumSavings: "Cumulative savings",
+      netPosition: "Net position",
+      producedSoFar: "Energy produced",
+      coveredSoFar: "Consumption covered",
+      paidOff: "Investment paid off ✓",
+      hint: "Drag the handle to see how your investment evolves",
+    },
   },
 };
 
@@ -208,6 +218,16 @@ const tr: typeof en = {
       paybackV: (p: string) => `~${p} yıl`,
     },
     replay: "Yerleşimi tekrar oynat",
+    slider: {
+      title: "Yıla göre keşfet",
+      year: "Yıl",
+      cumSavings: "Kümülatif tasarruf",
+      netPosition: "Net durum",
+      producedSoFar: "Üretilen enerji",
+      coveredSoFar: "Karşılanan tüketim",
+      paidOff: "Yatırım kendini ödedi ✓",
+      hint: "Yatırımınızın seyrini görmek için tutamacı kaydırın",
+    },
   },
 };
 

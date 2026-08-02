@@ -33,3 +33,43 @@ pre {
 *::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Yıl kaydırıcısı — dikdörtgen amber tutamaç */
+.sv-year-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #1c2942;
+  outline: none;
+  cursor: pointer;
+}
+.sv-year-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 26px;
+  border-radius: 4px;
+  background: #fbbf24;
+  border: 2px solid #0b1220;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+.sv-year-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  background: #fcd34d;
+}
+.sv-year-slider::-moz-range-thumb {
+  width: 14px;
+  height: 26px;
+  border-radius: 4px;
+  background: #fbbf24;
+  border: 2px solid #0b1220;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+.sv-year-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #1c2942;
+}
