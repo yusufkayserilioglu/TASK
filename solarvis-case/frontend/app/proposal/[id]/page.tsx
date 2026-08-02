@@ -6,8 +6,12 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import AnalysisSection, { Analysis } from "@/components/AnalysisSection";
 import { useLang, LangToggle } from "@/components/LanguageProvider";
+import ProposalSummary from "@/components/ProposalSummary";
 
 const RoofScene = dynamic(() => import("@/components/RoofScene"), {
+  ssr: false,
+});
+const Scene3D = dynamic(() => import("@/components/Scene3D"), {
   ssr: false,
 });
 
@@ -28,6 +32,7 @@ export default function ProposalPage() {
   const [err, setErr] = useState<"down" | string>("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [view3d, setView3d] = useState(false);
   const viewed = useRef(false);
   const snap = useRef<string | null>(null);
 
@@ -58,7 +63,11 @@ export default function ProposalPage() {
       const r = await fetch(`${API}/api/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kwp: p.kwp, sceneImage: snap.current }),
+        body: JSON.stringify({
+          kwp: p.kwp,
+          sceneImage: snap.current,
+          lang,
+        }),
       });
       if (!r.ok) throw new Error((await r.json()).detail);
       const blob = await r.blob();
@@ -121,18 +130,40 @@ export default function ProposalPage() {
           <LangToggle />
         </header>
 
-        <div className="bg-[#0f1a2e] border border-slate-800 rounded-xl p-4">
-          <RoofScene
-            kwp={p.kwp}
-            showControls={false}
-            showTable={true}
-            tableLayout="below"
-            onSnapshot={(u) => {
-              snap.current = u;
-            }}
-          />
+        <div className="bg-[#0f1a2e] border border-slate-800 rounded-xl p-4
+                        space-y-3">
+          <div className="flex justify-end">
+            <div className="flex rounded-full border border-slate-700
+                            overflow-hidden text-xs">
+              {(["2D", "3D"] as const).map((v) => (
+                <button key={v}
+                  onClick={() => setView3d(v === "3D")}
+                  className={`px-3 py-1 transition ${
+                    (v === "3D") === view3d
+                      ? "bg-amber-400 text-[#0b1220] font-semibold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          {view3d ? (
+            <Scene3D kwp={p.kwp} />
+          ) : (
+            <RoofScene
+              kwp={p.kwp}
+              showControls={false}
+              showTable={true}
+              tableLayout="below"
+              onSnapshot={(u) => {
+                snap.current = u;
+              }}
+            />
+          )}
         </div>
-
+        
+        <ProposalSummary data={p.analysis} />
         <AnalysisSection data={p.analysis} />
 
         <div className="flex flex-wrap justify-center gap-2 pt-1">

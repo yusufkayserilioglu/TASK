@@ -163,7 +163,8 @@ def chat_message(body: ChatMessageIn):
 
 class ReportIn(BaseModel):
     kwp: float
-    sceneImage: str | None = None  # data URL (opsiyonel)
+    sceneImage: str | None = None
+    lang: str = "en"
 
 
 @app.post("/api/report")
@@ -181,7 +182,7 @@ def report(body: ReportIn):
             png = base64.b64decode(body.sceneImage.split(",", 1)[1])
         except Exception:
             png = None
-    pdf = build_pdf(a, png)
+    pdf = build_pdf(a, png, body.lang)
     return Response(
         content=pdf,
         media_type="application/pdf",

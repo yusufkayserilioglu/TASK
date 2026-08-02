@@ -8,3 +8,8 @@ def test_pdf_uretimi_gorselsiz_de_calisir():
     pdf = build_pdf(a, None)
     assert pdf[:4] == b"%PDF"
     assert len(pdf) > 3000
+
+def test_pdf_turkce_uretilir():
+    _, a = run_pipeline(6.0)
+    pdf = build_pdf(a, None, "tr")
+    assert pdf[:4] == b"%PDF"
