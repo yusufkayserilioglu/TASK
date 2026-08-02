@@ -68,6 +68,7 @@ const en = {
   scene3d: {
     hint: "Drag to rotate · Scroll to zoom",
     loading: "Loading 3D scene…",
+    replay: "Replay placement",
   },
   summary: {
     title: "Proposal Summary",
@@ -100,6 +101,7 @@ const en = {
       panelSpecV: (n: number) => `${n} × 400 Wp · 1 m × 2 m`,
       paybackV: (p: string) => `~${p} years`,
     },
+    replay: "Replay placement",
   },
 };
 
@@ -172,6 +174,7 @@ const tr: typeof en = {
   scene3d: {
     hint: "Döndürmek için sürükleyin · Kaydırarak yakınlaştırın",
     loading: "3B sahne yükleniyor…",
+    replay: "Yerleşimi tekrar oynat",
   },
   summary: {
     title: "Teklif Özeti",
@@ -204,6 +207,7 @@ const tr: typeof en = {
       panelSpecV: (n: number) => `${n} adet 400 Wp · 1 m × 2 m`,
       paybackV: (p: string) => `~${p} yıl`,
     },
+    replay: "Yerleşimi tekrar oynat",
   },
 };
 

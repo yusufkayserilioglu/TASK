@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls, Line as DreiLine, Edges, Html,
 } from "@react-three/drei";
@@ -46,6 +46,34 @@ function fanGeom(verts: number[][]) {
   return g;
 }
 
+function AnimatedPanel({
+  geom, delay,
+}: { geom: THREE.BufferGeometry; delay: number }) {
+  const grp = useRef<THREE.Group>(null);
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  const start = useRef<number | null>(null);
+  useFrame(({ clock }) => {
+    if (start.current === null) start.current = clock.getElapsedTime();
+    const t = clock.getElapsedTime() - start.current - delay;
+    if (!grp.current) return;
+    if (t <= 0) { grp.current.visible = false; return; }
+    grp.current.visible = true;
+    const k = Math.min(t / 0.45, 1);          // 450 ms
+    const e = 1 - Math.pow(1 - k, 3);         // easeOutCubic
+    grp.current.position.y = (1 - e) * 3;     // 3 m yukarıdan süzülür
+    if (mat.current) mat.current.opacity = e;
+  });
+  return (
+    <group ref={grp} visible={false}>
+      <mesh geometry={geom}>
+        <meshStandardMaterial ref={mat} color="#16283f" metalness={0.35}
+          roughness={0.35} side={THREE.DoubleSide} transparent opacity={0} />
+        <Edges color="#7ba7dd" threshold={15} />
+      </mesh>
+    </group>
+  );
+}
+
 export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
   const { t } = useLang();
   const [mpp, setMpp] = useState(0);
@@ -55,6 +83,7 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
   const [tex, setTex] = useState<THREE.Texture | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const [animKey, setAnimKey] = useState(0);
 
   const activeId = hoverId ?? pinnedId; // hover öncelikli, yoksa sabitlenen
 
@@ -250,13 +279,12 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
             </mesh>
           ))}
 
-          {world.panelGeoms.map((g, i) => (
-            <mesh key={`p${i}`} geometry={g}>
-              <meshStandardMaterial color="#16283f" metalness={0.35}
-                roughness={0.35} side={THREE.DoubleSide} />
-              <Edges color="#7ba7dd" threshold={15} />
-            </mesh>
-          ))}
+          <group key={animKey}>
+            {world.panelGeoms.map((g, i) => (
+              <AnimatedPanel key={i} geom={g}
+                delay={0.35 + i * 0.13} />
+            ))}
+          </group>
 
           {world.edges3.map((e, i) => (
             <DreiLine key={`e${i}`} points={e as any} color="white"
@@ -369,7 +397,14 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
             minDistance={8} maxDistance={70} />
         </Canvas>
       </div>
-      <p className="text-xs text-slate-500">{t.scene3d.hint}</p>
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-slate-500">{t.scene3d.hint}</p>
+        <button onClick={() => setAnimKey((k) => k + 1)}
+          className="text-xs px-3 py-1 rounded-full border border-slate-700
+                     text-amber-300 hover:bg-amber-400/10 transition">
+          ▶ {t.scene3d.replay}
+        </button>
+      </div>
     </div>
   );
 }
