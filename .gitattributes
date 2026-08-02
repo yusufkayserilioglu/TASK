@@ -1,0 +1,8 @@
+CLAUDE.md export-ignore
+AGENTS.md export-ignore
+INTERVIEW.md export-ignore
+DECISIONS.md export-ignore
+**/__pycache__/** export-ignore
+*.pyc export-ignore
+**/CLAUDE.md export-ignore
+**/AGENTS.md export-ignore

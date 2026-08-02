@@ -3,3 +3,5 @@ solarvis-case/backend/.env
 solarvis-case/frontend/node_modules/
 solarvis-case/frontend/.next/
 solarvis-case/backend/data/proposals.db
+__pycache__/
+*.pyc
