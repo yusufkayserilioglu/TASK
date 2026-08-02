@@ -118,13 +118,12 @@ def place_panels(model, kwp: float, mpp: float, lat: float, lon: float):
             "facetId": r["facet"]["id"],
             "compass": r["facet"]["compass"],
             "azimuthDeg": r["facet"]["azimuthDeg"],
-            "aspect": r["aspect"],
+            "aspect": round(r["aspect"], 1),
             "orientation": r["orient"],
             "specificYield": round(r["ey"], 1) if yield_source == "pvgis" else None,
             "capacity": len(r["layout"]),
             "placed": take,
             "kwp": placed_kwp,
-            "aspect": round(r["aspect"], 1),
             "estAnnualKwh": round(r["ey"] * placed_kwp, 0)
             if yield_source == "pvgis" else None,
         })

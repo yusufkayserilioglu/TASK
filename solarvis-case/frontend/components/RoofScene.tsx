@@ -12,7 +12,7 @@ const FULL_SCALE = DISPLAY_PX / IMG_PX;
 const MARKING_MODE = false;
 
 const NAVY_CHIP = "rgba(9,16,30,0.88)";
-const AMBER = "#fbbf24";
+const AMBER = "#eab308"; // yellow-500 (hardal/altın sarısı)
 const INK = "#0b1220";
 
 type Edge = { from: number[]; to: number[]; kind: string; lengthM: number };
@@ -300,7 +300,7 @@ export default function RoofScene({
                   closed
                   fill={
                     hv?.type === "facet" && hv.id === i
-                      ? "rgba(251,191,36,0.22)"
+                      ? "rgba(234,179,8,0.22)"
                       : "rgba(0,0,0,0.01)"
                   }
                   onMouseEnter={() => setHover({ type: "facet", id: i })}
@@ -362,7 +362,7 @@ export default function RoofScene({
                     <Tag
                       fill={hovered ? AMBER : NAVY_CHIP}
                       cornerRadius={4}
-                      stroke={hovered ? undefined : "rgba(251,191,36,0.35)"}
+                      stroke={hovered ? undefined : "rgba(234,179,8,0.35)"}
                       strokeWidth={hovered ? 0 : 0.75}
                     />
                     <Text
@@ -387,7 +387,7 @@ export default function RoofScene({
                     <Tag
                       fill={hovered ? AMBER : NAVY_CHIP}
                       cornerRadius={11}
-                      stroke={hovered ? undefined : "rgba(251,191,36,0.5)"}
+                      stroke={hovered ? undefined : "rgba(234,179,8,0.5)"}
                       strokeWidth={hovered ? 0 : 1}
                     />
                     <Text
@@ -395,7 +395,7 @@ export default function RoofScene({
                       fontSize={14}
                       fontFamily="Inter, system-ui, sans-serif"
                       fontStyle="bold"
-                      fill={hovered ? INK : "#fde68a"}
+                      fill={hovered ? INK : "#fef08a"}
                       padding={5}
                     />
                   </Label>
@@ -406,7 +406,7 @@ export default function RoofScene({
 
           {infoPanel && (
             <div
-              className="absolute z-10 pointer-events-none w-40 rounded-lg border border-amber-400/50 bg-[#0d1830]/95 px-3 py-2 shadow-xl backdrop-blur-sm"
+              className="absolute z-10 pointer-events-none w-40 rounded-lg border border-yellow-500/50 bg-[#0d1830]/95 px-3 py-2 shadow-xl backdrop-blur-sm"
               style={{
                 top: Math.min(Math.max(infoPanel.sy - 44, 10),
                               DISPLAY_PX - 120),
@@ -415,7 +415,7 @@ export default function RoofScene({
                   : { right: 10 }),
               }}
             >
-              <div className="text-amber-300 text-sm font-semibold mb-1">
+              <div className="text-yellow-400 text-sm font-semibold mb-1">
                 {infoPanel.title}
               </div>
               {infoPanel.rows.map(([k, v]) => (
@@ -436,7 +436,7 @@ export default function RoofScene({
                 <button key={k} onClick={() => setKwp(k)}
                   className={`px-3 py-1 rounded-md text-sm transition ${
                     kwp === k
-                      ? "bg-amber-400 text-[#0b1220] font-medium"
+                      ? "bg-yellow-500 text-[#0b1220] font-medium"
                       : "bg-[#16233c] text-slate-300 hover:bg-[#1c2c4a]"
                   }`}>
                   {k} kWp
@@ -460,7 +460,7 @@ export default function RoofScene({
               </p>
             )}
             {pl && pl.placedPanels < pl.requestedPanels && (
-              <p className="text-sm text-amber-400">
+              <p className="text-sm text-yellow-500">
                 {t.scene.capacity(pl.placedPanels, pl.requestedPanels)}
               </p>
             )}
@@ -511,7 +511,7 @@ export default function RoofScene({
                     onMouseLeave={() => setHover(null)}
                     className={
                       hv?.type === "edge" && hv.id === i
-                        ? "bg-amber-400/10"
+                        ? "bg-yellow-500/10"
                         : "hover:bg-white/5"
                     }
                   >
@@ -559,7 +559,7 @@ export default function RoofScene({
                       onMouseLeave={() => setHover(null)}
                       className={
                         hv?.type === "facet" && hv.id === i
-                          ? "bg-amber-400/10"
+                          ? "bg-yellow-500/10"
                           : "hover:bg-white/5"
                       }
                     >
@@ -583,7 +583,7 @@ export default function RoofScene({
                   <td className="py-0.5 text-slate-300" colSpan={4}>
                     {t.scene.totalTrue}
                   </td>
-                  <td className="py-0.5 text-right font-mono text-amber-300">
+                  <td className="py-0.5 text-right font-mono text-yellow-400">
                     {totalTrue.toFixed(1)} m²
                   </td>
                 </tr>

@@ -120,9 +120,11 @@ class Report(FPDF):
         reg = FONT_DIR / "DejaVuSans.ttf"
         bold = FONT_DIR / "DejaVuSans-Bold.ttf"
         ital = FONT_DIR / "DejaVuSans-Oblique.ttf"
-        if reg.exists() and bold.exists():
+        if reg.exists():
+            # Bold/Oblique dosyaları yoksa regular'a düşülür; unicode kapsamı
+            # (Türkçe karakterler) yine de korunur, sadece ağırlık/eğim aynı kalır.
             self.add_font("DejaVu", "", str(reg))
-            self.add_font("DejaVu", "B", str(bold))
+            self.add_font("DejaVu", "B", str(bold if bold.exists() else reg))
             self.add_font("DejaVu", "I", str(ital if ital.exists() else reg))
             self.font_family_name, self.unicode_ok = "DejaVu", True
         else:
@@ -135,14 +137,6 @@ class Report(FPDF):
     def fmt_num(self, n) -> str:
         s = f"{int(n):,}"
         return s.replace(",", ".") if self.pdf_lang == "tr" else s
-
-    def w(self, txt: str) -> str:
-        """Unicode font yoksa Türkçe karakterleri ASCII'ye indir."""
-        return txt if self.uni else txt.translate(TR_MAP)
-
-    def num(self, n) -> str:
-        s = f"{int(n):,}"
-        return s.replace(",", ".") if self.lang == "tr" else s
 
     def header(self):
         self.set_font(self.font_family_name, "B", 16)
@@ -175,6 +169,10 @@ def _chart(pdf, cashflow, payback, payback_s, x, y, w, h):
     pad = span * 0.07
     lo, hi = vmin - pad, vmax + pad
     n = len(vals) - 1
+    # Grafik 0..n yıl aralığını kapsar; payback bunun ötesindeyse (düşük
+    # üretim senaryosu) işaretçiyi kutunun dışına taşırmak yerine kenara sabitle.
+    payback_px_year = min(payback, n) if payback else None
+    payback_overflow = bool(payback) and payback > n
 
     def px(year):
         return x + w * year / n
@@ -215,12 +213,14 @@ def _chart(pdf, cashflow, payback, payback_s, x, y, w, h):
     if payback:
         pdf.set_draw_color(*AMBER)
         pdf.set_line_width(0.45)
-        pdf.line(px(payback), y, px(payback), y + h)
+        pdf.line(px(payback_px_year), y, px(payback_px_year), y + h)
         pdf.set_line_width(0.2)
         pdf.set_text_color(*AMBER)
         pdf.set_font(pdf.font_family_name, "B", 8)
-        pdf.text(px(payback) + 1.5, y + 4,
-                 pdf.tx(pdf.strings["pay_line"].format(p=payback_s)))
+        label = pdf.tx(pdf.strings["pay_line"].format(p=payback_s))
+        label_x = (px(payback_px_year) - pdf.get_string_width(label) - 1.5
+                   if payback_overflow else px(payback_px_year) + 1.5)
+        pdf.text(label_x, y + 4, label)
 
     pdf.set_draw_color(*SKY)
     pdf.set_line_width(0.6)
@@ -236,7 +236,7 @@ def _chart(pdf, cashflow, payback, payback_s, x, y, w, h):
     if payback:
         pdf.set_fill_color(*AMBER)
         r = 1.3
-        pdf.ellipse(px(payback) - r, py(0) - r, 2 * r, 2 * r, style="F")
+        pdf.ellipse(px(payback_px_year) - r, py(0) - r, 2 * r, 2 * r, style="F")
 
     pdf.set_font(pdf.font_family_name, "B", 8)
     pdf.set_text_color(*SKY)

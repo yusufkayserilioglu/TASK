@@ -242,8 +242,8 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
           {world.facetGeoms.map((f) => (
             <mesh key={f.id} geometry={f.geom}>
               <meshStandardMaterial
-                color={activeId === f.id ? "#8a6d1f" : "#39445a"}
-                emissive={activeId === f.id ? "#3d2f00" : "#000000"}
+                color={activeId === f.id ? "#816607" : "#39445a"}
+                emissive={activeId === f.id ? "#392c00" : "#000000"}
                 roughness={0.95}
                 side={THREE.DoubleSide}
               />
@@ -272,7 +272,7 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
               <div
                 style={{
                   background: "rgba(9,16,30,0.9)",
-                  border: "1px solid rgba(251,191,36,0.55)",
+                  border: "1px solid rgba(234,179,8,0.55)",
                   borderRadius: 6,
                   padding: "2px 7px",
                   color: "#e7edf7",
@@ -305,9 +305,9 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
                       width: 26, height: 26, borderRadius: 13,
                       display: "flex", alignItems: "center",
                       justifyContent: "center",
-                      background: open ? "#fbbf24" : "rgba(9,16,30,0.92)",
-                      border: "1.5px solid rgba(251,191,36,0.8)",
-                      color: open ? "#0b1220" : "#fde68a",
+                      background: open ? "#eab308" : "rgba(9,16,30,0.92)",
+                      border: "1.5px solid rgba(234,179,8,0.8)",
+                      color: open ? "#0b1220" : "#fef08a",
                       fontSize: 12, fontWeight: 700,
                       fontFamily: "var(--font-sans), sans-serif",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
@@ -324,14 +324,14 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
                         left: 32, top: -8,
                         width: 168,
                         background: "rgba(13,24,48,0.96)",
-                        border: "1px solid rgba(251,191,36,0.5)",
+                        border: "1px solid rgba(234,179,8,0.5)",
                         borderRadius: 8,
                         padding: "8px 10px",
                         boxShadow: "0 6px 18px rgba(0,0,0,0.55)",
                         pointerEvents: "none",
                       }}
                     >
-                      <div style={{ color: "#fcd34d", fontSize: 13,
+                      <div style={{ color: "#facc15", fontSize: 13,
                                     fontWeight: 600, marginBottom: 4 }}>
                         {t.scene.facet} {b.compass}
                       </div>
@@ -370,78 +370,6 @@ export default function Scene3D({ kwp = 6 }: { kwp?: number }) {
         </Canvas>
       </div>
       <p className="text-xs text-slate-500">{t.scene3d.hint}</p>
-
-      {roof && pl && (
-        <div className="w-full max-w-[640px] grid grid-cols-1 sm:grid-cols-2
-                        gap-6 text-sm pt-2">
-          <div>
-            <h3 className="font-semibold mb-1 text-slate-200">
-              {t.scene.edges}
-            </h3>
-            <table className="w-full">
-              <tbody>
-                {roof.edges.map((e, i) => (
-                  <tr key={i}>
-                    <td className="py-0.5 pr-2 text-slate-400">
-                      {t.scene.kind[e.kind]}
-                    </td>
-                    <td className="py-0.5 text-right font-mono text-slate-100">
-                      {e.lengthM.toFixed(2)} m
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-1 text-slate-200">
-              {t.scene.facetsTitle}
-            </h3>
-            <table className="w-full">
-              <thead>
-                <tr className="text-slate-500 text-xs">
-                  <th className="text-left font-normal">{t.scene.dir}</th>
-                  <th className="text-right font-normal">{t.scene.azimuth}</th>
-                  <th className="text-right font-normal">
-                    {t.scene.projected}
-                  </th>
-                  <th className="text-right font-normal">{t.scene.trueCol}</th>
-                  <th className="text-right font-normal">{t.scene.panels}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roof.facets.map((f) => {
-                  const pf = pl.perFacet.find((x) => x.facetId === f.id);
-                  return (
-                    <tr key={f.id}
-                      onMouseEnter={() => setHoverId(f.id)}
-                      onMouseLeave={() => setHoverId(null)}
-                      className={
-                        activeId === f.id
-                          ? "bg-amber-400/10"
-                          : "hover:bg-white/5"
-                      }>
-                      <td className="py-0.5 text-slate-300">{f.compass}</td>
-                      <td className="py-0.5 text-right font-mono text-slate-100">
-                        {f.azimuthDeg}°
-                      </td>
-                      <td className="py-0.5 text-right font-mono text-slate-100">
-                        {f.projectedAreaM2}
-                      </td>
-                      <td className="py-0.5 text-right font-mono text-slate-100">
-                        {f.trueAreaM2}
-                      </td>
-                      <td className="py-0.5 text-right font-mono text-slate-100">
-                        {pf ? `${pf.placed}/${pf.capacity}` : "–"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
